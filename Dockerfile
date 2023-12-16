@@ -7,7 +7,7 @@ RUN go build -o gemini main.go
 RUN mkdir -p /tmp/app
 RUN cp gemini /tmp/app && chmod +x /tmp/app/gemini
 
-FROM alpine:latest
+FROM debian:bookworm-slim
 COPY --from=builder /tmp/app /app
 
 CMD ["/app/gemini"]
