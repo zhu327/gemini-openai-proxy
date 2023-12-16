@@ -13,5 +13,5 @@ func Register(router *gin.Engine) {
 	router.Use(cors.New(config))
 
 	// Define a route and its handler
-	router.POST("/v1/chat/completions", ChatHandler)
+	router.POST("/v1/chat/completions", ChatProxyHandler)
 }

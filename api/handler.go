@@ -13,11 +13,11 @@ import (
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
-	"github.com/zhu327/gemini-openai-proxy/pkg/gpt"
+	"github.com/zhu327/gemini-openai-proxy/pkg/protocol"
 	"github.com/zhu327/gemini-openai-proxy/pkg/util"
 )
 
-func ChatHandler(c *gin.Context) {
+func ChatProxyHandler(c *gin.Context) {
 	// Retrieve the Authorization header value
 	authorizationHeader := c.GetHeader("Authorization")
 	// Declare a variable to store the OPENAI_API_KEY
@@ -50,10 +50,10 @@ func ChatHandler(c *gin.Context) {
 	defer client.Close()
 
 	model := client.GenerativeModel("gemini-pro")
-	gpt.SetGenaiModelByOpenaiRequest(model, req)
+	protocol.SetGenaiModelByOpenaiRequest(model, req)
 
 	cs := model.StartChat()
-	gpt.SetGenaiChatByOpenaiRequest(cs, req)
+	protocol.SetGenaiChatByOpenaiRequest(cs, req)
 
 	prompt := genai.Text(req.Messages[len(req.Messages)-1].Content)
 
@@ -64,7 +64,7 @@ func ChatHandler(c *gin.Context) {
 			return
 		}
 
-		openaiResp := gpt.GenaiResponseToOpenaiResponse(genaiResp)
+		openaiResp := protocol.GenaiResponseToOpenaiResponse(genaiResp)
 		c.JSON(http.StatusOK, openaiResp)
 		return
 	}
@@ -88,7 +88,7 @@ func ChatHandler(c *gin.Context) {
 				break
 			}
 
-			openaiResp := gpt.GenaiResponseToStreamComplitionResponse(genaiResp, respID, created)
+			openaiResp := protocol.GenaiResponseToStreamComplitionResponse(genaiResp, respID, created)
 			resp, _ := json.Marshal(openaiResp)
 			dataChan <- string(resp)
 		}
@@ -97,10 +97,10 @@ func ChatHandler(c *gin.Context) {
 	setEventStreamHeaders(c)
 	c.Stream(func(w io.Writer) bool {
 		if data, ok := <-dataChan; ok {
-			c.Render(-1, gpt.Event{Data: "data: " + data})
+			c.Render(-1, protocol.Event{Data: "data: " + data})
 			return true
 		}
-		c.Render(-1, gpt.Event{Data: "data: [DONE]"})
+		c.Render(-1, protocol.Event{Data: "data: [DONE]"})
 		return false
 	})
 }
