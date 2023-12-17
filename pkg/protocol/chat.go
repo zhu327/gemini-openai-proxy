@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/generative-ai-go/genai"
@@ -41,10 +42,12 @@ func GenaiResponseToStreamComplitionResponse(
 
 	for i, candidate := range genaiResp.Candidates {
 		var content string
-		if len(candidate.Content.Parts) > 0 {
+		if candidate.Content != nil && len(candidate.Content.Parts) > 0 {
 			if s, ok := candidate.Content.Parts[0].(genai.Text); ok {
 				content = string(s)
 			}
+		} else {
+			log.Printf("genai message finish reason %s\n", candidate.FinishReason.String())
 		}
 
 		choice := CompletionChoice{
@@ -70,10 +73,12 @@ func GenaiResponseToOpenaiResponse(
 
 	for i, candidate := range genaiResp.Candidates {
 		var content string
-		if len(candidate.Content.Parts) > 0 {
+		if candidate.Content != nil && len(candidate.Content.Parts) > 0 {
 			if s, ok := candidate.Content.Parts[0].(genai.Text); ok {
 				content = string(s)
 			}
+		} else {
+			log.Printf("genai message finish reason %s\n", candidate.FinishReason.String())
 		}
 
 		choice := openai.ChatCompletionChoice{

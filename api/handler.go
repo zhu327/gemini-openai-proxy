@@ -93,6 +93,11 @@ func ChatProxyHandler(c *gin.Context) {
 			}
 
 			openaiResp := protocol.GenaiResponseToStreamComplitionResponse(genaiResp, respID, created)
+			if len(openaiResp.Choices) > 0 && openaiResp.Choices[0].Delta.Content == "" {
+				close(dataChan)
+				break
+			}
+
 			resp, _ := json.Marshal(openaiResp)
 			dataChan <- string(resp)
 		}
