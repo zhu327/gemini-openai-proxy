@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -44,6 +45,7 @@ func ChatProxyHandler(c *gin.Context) {
 	ctx := c.Request.Context()
 	client, err := genai.NewClient(ctx, option.WithAPIKey(openaiAPIKey))
 	if err != nil {
+		log.Printf("new genai client error %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -60,6 +62,7 @@ func ChatProxyHandler(c *gin.Context) {
 	if !req.Stream {
 		genaiResp, err := cs.SendMessage(ctx, prompt)
 		if err != nil {
+			log.Printf("genai send message error %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -83,6 +86,7 @@ func ChatProxyHandler(c *gin.Context) {
 			}
 
 			if err != nil {
+				log.Printf("genai get stream message error %v\n", err)
 				dataChan <- fmt.Sprintf(`{"error": "%s"}`, err.Error())
 				close(dataChan)
 				break

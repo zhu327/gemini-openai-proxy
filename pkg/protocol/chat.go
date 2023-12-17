@@ -47,14 +47,8 @@ func GenaiResponseToStreamComplitionResponse(
 			}
 		}
 
-		var reason = string(openai.FinishReasonNull)
-		if candidate.FinishReason == 1 {
-			reason = string(openai.FinishReasonStop)
-		}
-
 		choice := CompletionChoice{
-			Index:        i,
-			FinishReason: &reason,
+			Index: i,
 		}
 		choice.Delta.Content = content
 
