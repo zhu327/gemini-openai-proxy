@@ -131,6 +131,15 @@ func SetGenaiChatByOpenaiRequest(cs *genai.ChatSession, req openai.ChatCompletio
 			}
 		}
 	}
+
+	if len(cs.History) != 0 && cs.History[len(cs.History)-1].Role != "model" {
+		cs.History = append(cs.History, &genai.Content{
+			Parts: []genai.Part{
+				genai.Text("ok."),
+			},
+			Role: "model",
+		})
+	}
 }
 
 func SetGenaiModelByOpenaiRequest(model *genai.GenerativeModel, req openai.ChatCompletionRequest) {

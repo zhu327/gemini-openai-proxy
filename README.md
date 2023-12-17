@@ -65,6 +65,10 @@ Gemini-OpenAI-Proxy offers a straightforward way to integrate OpenAI functionali
 
 Now, your application is equipped to leverage OpenAI functionality through the Gemini-OpenAI-Proxy, bridging the gap between OpenAI and applications using the Google Gemini Pro protocol.
 
+## Compatibility Testing
+
+Gemini-OpenAI-Proxy is designed to seamlessly integrate OpenAI-powered functionalities into applications using the Google Gemini Pro protocol. To ensure comprehensive compatibility, we have conducted testing specifically targeting `chatbox` and `openai translator` functionalities.
+
 ---
 
 ## License

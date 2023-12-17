@@ -18,6 +18,20 @@ import (
 	"github.com/zhu327/gemini-openai-proxy/pkg/util"
 )
 
+func ModelsHandler(c *gin.Context) {
+	model := openai.Model{
+		CreatedAt: time.Now().Unix(),
+		ID:        "gpt-3.5-turbo",
+		Object:    "model",
+		OwnedBy:   "openai",
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"object": "list",
+		"data":   []any{model},
+	})
+}
+
 func ChatProxyHandler(c *gin.Context) {
 	// Retrieve the Authorization header value
 	authorizationHeader := c.GetHeader("Authorization")
