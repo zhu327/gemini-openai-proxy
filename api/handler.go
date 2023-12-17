@@ -18,9 +18,9 @@ import (
 	"github.com/zhu327/gemini-openai-proxy/pkg/util"
 )
 
-func ModelsHandler(c *gin.Context) {
+func ModelListHandler(c *gin.Context) {
 	model := openai.Model{
-		CreatedAt: time.Now().Unix(),
+		CreatedAt: 1686935002,
 		ID:        "gpt-3.5-turbo",
 		Object:    "model",
 		OwnedBy:   "openai",
@@ -30,6 +30,17 @@ func ModelsHandler(c *gin.Context) {
 		"object": "list",
 		"data":   []any{model},
 	})
+}
+
+func ModelRetrieveHandler(c *gin.Context) {
+	model := openai.Model{
+		CreatedAt: 1686935002,
+		ID:        "gpt-3.5-turbo",
+		Object:    "model",
+		OwnedBy:   "openai",
+	}
+
+	c.JSON(http.StatusOK, model)
 }
 
 func ChatProxyHandler(c *gin.Context) {
