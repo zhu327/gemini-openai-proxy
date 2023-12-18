@@ -8,8 +8,8 @@ import (
 func Register(router *gin.Engine) {
 	// Configure CORS to allow all methods and all origins
 	config := cors.DefaultConfig()
-	config.AllowAllOrigins = true
-	config.AllowMethods = []string{"GET", "POST"}
+	config.AllowOrigins = []string{"*"}
+	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	router.Use(cors.New(config))
 
 	// Define a route and its handler
