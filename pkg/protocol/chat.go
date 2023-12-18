@@ -11,6 +11,13 @@ import (
 	"github.com/zhu327/gemini-openai-proxy/pkg/util"
 )
 
+const (
+	GeminiPro = "gemini-pro"
+
+	genaiRoleUser  = "user"
+	genaiRoleModel = "model"
+)
+
 type CompletionChoice struct {
 	Index int `json:"index"`
 	Delta struct {
@@ -27,7 +34,7 @@ type CompletionResponse struct {
 	Choices []CompletionChoice `json:"choices"`
 }
 
-func GenaiResponseToStreamComplitionResponse(
+func GenaiResponseToStreamCompletionResponse(
 	genaiResp *genai.GenerateContentResponse,
 	respID string,
 	created int64,
@@ -36,7 +43,7 @@ func GenaiResponseToStreamComplitionResponse(
 		ID:      fmt.Sprintf("chatcmpl-%s", respID),
 		Object:  "chat.completion.chunk",
 		Created: created,
-		Model:   "gemini-pro",
+		Model:   GeminiPro,
 		Choices: make([]CompletionChoice, 0, len(genaiResp.Candidates)),
 	}
 
@@ -46,14 +53,22 @@ func GenaiResponseToStreamComplitionResponse(
 			if s, ok := candidate.Content.Parts[0].(genai.Text); ok {
 				content = string(s)
 			}
-		} else {
-			log.Printf("genai message finish reason %s\n", candidate.FinishReason.String())
 		}
 
 		choice := CompletionChoice{
 			Index: i,
 		}
 		choice.Delta.Content = content
+
+		if candidate.FinishReason > genai.FinishReasonStop {
+			log.Printf("genai message finish reason %s\n", candidate.FinishReason.String())
+
+			var openaiFinishReason string = string(openai.FinishReasonStop)
+			if candidate.FinishReason == genai.FinishReasonMaxTokens {
+				openaiFinishReason = string(openai.FinishReasonLength)
+			}
+			choice.FinishReason = &openaiFinishReason
+		}
 
 		resp.Choices = append(resp.Choices, choice)
 	}
@@ -67,7 +82,7 @@ func GenaiResponseToOpenaiResponse(
 		ID:      fmt.Sprintf("chatcmpl-%s", util.GetUUID()),
 		Object:  "chat.completion",
 		Created: time.Now().Unix(),
-		Model:   "gemini-pro",
+		Model:   GeminiPro,
 		Choices: make([]openai.ChatCompletionChoice, 0, len(genaiResp.Candidates)),
 	}
 
@@ -77,8 +92,6 @@ func GenaiResponseToOpenaiResponse(
 			if s, ok := candidate.Content.Parts[0].(genai.Text); ok {
 				content = string(s)
 			}
-		} else {
-			log.Printf("genai message finish reason %s\n", candidate.FinishReason.String())
 		}
 
 		choice := openai.ChatCompletionChoice{
@@ -105,13 +118,13 @@ func SetGenaiChatByOpenaiRequest(cs *genai.ChatSession, req openai.ChatCompletio
 						Parts: []genai.Part{
 							genai.Text(message.Content),
 						},
-						Role: "user",
+						Role: genaiRoleUser,
 					},
 					{
 						Parts: []genai.Part{
 							genai.Text("ok."),
 						},
-						Role: "model",
+						Role: genaiRoleModel,
 					},
 				}...)
 			case openai.ChatMessageRoleAssistant:
@@ -119,25 +132,25 @@ func SetGenaiChatByOpenaiRequest(cs *genai.ChatSession, req openai.ChatCompletio
 					Parts: []genai.Part{
 						genai.Text(message.Content),
 					},
-					Role: "model",
+					Role: genaiRoleModel,
 				})
 			case openai.ChatMessageRoleUser:
 				cs.History = append(cs.History, &genai.Content{
 					Parts: []genai.Part{
 						genai.Text(message.Content),
 					},
-					Role: "user",
+					Role: genaiRoleUser,
 				})
 			}
 		}
 	}
 
-	if len(cs.History) != 0 && cs.History[len(cs.History)-1].Role != "model" {
+	if len(cs.History) != 0 && cs.History[len(cs.History)-1].Role != genaiRoleModel {
 		cs.History = append(cs.History, &genai.Content{
 			Parts: []genai.Part{
 				genai.Text("ok."),
 			},
-			Role: "model",
+			Role: genaiRoleModel,
 		})
 	}
 }

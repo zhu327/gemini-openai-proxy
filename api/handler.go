@@ -21,7 +21,7 @@ import (
 func ModelListHandler(c *gin.Context) {
 	model := openai.Model{
 		CreatedAt: 1686935002,
-		ID:        "gpt-3.5-turbo",
+		ID:        openai.GPT3Dot5Turbo,
 		Object:    "model",
 		OwnedBy:   "openai",
 	}
@@ -35,7 +35,7 @@ func ModelListHandler(c *gin.Context) {
 func ModelRetrieveHandler(c *gin.Context) {
 	model := openai.Model{
 		CreatedAt: 1686935002,
-		ID:        "gpt-3.5-turbo",
+		ID:        openai.GPT3Dot5Turbo,
 		Object:    "model",
 		OwnedBy:   "openai",
 	}
@@ -76,7 +76,7 @@ func ChatProxyHandler(c *gin.Context) {
 	}
 	defer client.Close()
 
-	model := client.GenerativeModel("gemini-pro")
+	model := client.GenerativeModel(protocol.GeminiPro)
 	protocol.SetGenaiModelByOpenaiRequest(model, req)
 
 	cs := model.StartChat()
@@ -100,31 +100,36 @@ func ChatProxyHandler(c *gin.Context) {
 	iter := cs.SendMessageStream(ctx, prompt)
 	dataChan := make(chan string)
 	go func() {
+		defer close(dataChan)
+
+		defer func() {
+			if r := recover(); r != nil {
+				log.Println("Recovered. Error:\n", r)
+			}
+		}()
+
 		respID := util.GetUUID()
 		created := time.Now().Unix()
 
 		for {
 			genaiResp, err := iter.Next()
 			if err == iterator.Done {
-				close(dataChan)
 				break
 			}
 
 			if err != nil {
 				log.Printf("genai get stream message error %v\n", err)
 				dataChan <- fmt.Sprintf(`{"error": "%s"}`, err.Error())
-				close(dataChan)
 				break
 			}
 
-			openaiResp := protocol.GenaiResponseToStreamComplitionResponse(genaiResp, respID, created)
-			if len(openaiResp.Choices) > 0 && openaiResp.Choices[0].Delta.Content == "" {
-				close(dataChan)
-				break
-			}
-
+			openaiResp := protocol.GenaiResponseToStreamCompletionResponse(genaiResp, respID, created)
 			resp, _ := json.Marshal(openaiResp)
 			dataChan <- string(resp)
+
+			if len(openaiResp.Choices) > 0 && openaiResp.Choices[0].FinishReason != nil {
+				break
+			}
 		}
 	}()
 
