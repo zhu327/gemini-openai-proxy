@@ -18,6 +18,12 @@ import (
 	"github.com/zhu327/gemini-openai-proxy/pkg/util"
 )
 
+func IndexHandler(c *gin.Context) {
+	c.JSON(http.StatusMisdirectedRequest, gin.H{
+		"message": "Welcome to the OpenAI API! Documentation is available at https://platform.openai.com/docs/api-reference",
+	})
+}
+
 func ModelListHandler(c *gin.Context) {
 	model := openai.Model{
 		CreatedAt: 1686935002,
