@@ -11,7 +11,18 @@ func Register(router *gin.Engine) {
 	// Configure CORS to allow all methods and all origins
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
-	config.AllowHeaders = []string{"Authorization", "Content-Type"}
+	config.AllowHeaders = []string{
+		"Accept",
+		"Authorization",
+		"Content-Type",
+		"Accept-Language",
+		"Content-Language",
+		"DPR",
+		"Downlink",
+		"Save-Data",
+		"Viewport-Width",
+		"Width",
+	}
 	config.OptionsResponseStatusCode = http.StatusOK
 	router.Use(cors.New(config))
 
