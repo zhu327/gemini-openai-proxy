@@ -1,6 +1,8 @@
 package api
 
 import (
+	"net/http"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -8,8 +10,9 @@ import (
 func Register(router *gin.Engine) {
 	// Configure CORS to allow all methods and all origins
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"*"}
-	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
+	config.AllowAllOrigins = true
+	config.AllowHeaders = []string{"Authorization", "Content-Type"}
+	config.OptionsResponseStatusCode = http.StatusOK
 	router.Use(cors.New(config))
 
 	// Define a route and its handler
