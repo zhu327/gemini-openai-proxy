@@ -22,6 +22,7 @@ func Register(router *gin.Engine) {
 		"Save-Data",
 		"Viewport-Width",
 		"Width",
+		"X-Requested-With",
 	}
 	config.OptionsResponseStatusCode = http.StatusOK
 	router.Use(cors.New(config))
