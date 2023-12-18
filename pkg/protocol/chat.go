@@ -157,13 +157,14 @@ func SetGenaiChatByOpenaiRequest(cs *genai.ChatSession, req openai.ChatCompletio
 
 func SetGenaiModelByOpenaiRequest(model *genai.GenerativeModel, req openai.ChatCompletionRequest) {
 	if req.MaxTokens != 0 {
-		model.MaxOutputTokens = int32(req.MaxTokens)
+		maxToken := int32(req.MaxTokens)
+		model.MaxOutputTokens = &maxToken
 	}
 	if req.Temperature != 0 {
-		model.Temperature = req.Temperature
+		model.Temperature = &req.Temperature
 	}
 	if req.TopP != 0 {
-		model.TopP = req.TopP
+		model.TopP = &req.TopP
 	}
 	model.SafetySettings = []*genai.SafetySetting{
 		{
