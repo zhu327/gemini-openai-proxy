@@ -19,5 +19,8 @@ func main() {
 	api.Register(router)
 
 	// Run the server on port 8080
-	router.Run(fmt.Sprintf(":%d", *port))
+	err := router.Run(fmt.Sprintf(":%d", *port))
+	if err != nil {
+		panic(err)
+	}
 }
