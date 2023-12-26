@@ -108,12 +108,6 @@ func ChatProxyHandler(c *gin.Context) {
 	go func() {
 		defer close(dataChan)
 
-		defer func() {
-			if r := recover(); r != nil {
-				log.Println("Recovered. Error:\n", r)
-			}
-		}()
-
 		respID := util.GetUUID()
 		created := time.Now().Unix()
 
