@@ -1,12 +1,17 @@
-package protocol
+package adapter
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/google/generative-ai-go/genai"
+	"github.com/pkg/errors"
 	openai "github.com/sashabaranov/go-openai"
+	"google.golang.org/api/iterator"
 
 	"github.com/zhu327/gemini-openai-proxy/pkg/util"
 )
@@ -18,23 +23,96 @@ const (
 	genaiRoleModel = "model"
 )
 
-type CompletionChoice struct {
-	Index int `json:"index"`
-	Delta struct {
-		Content string `json:"content"`
-	} `json:"delta"`
-	FinishReason *string `json:"finish_reason"`
+type GenaiModelAdapter interface {
+	GenerateContent(ctx context.Context, req *ChatCompletionRequest) (*openai.ChatCompletionResponse, error)
+	GenerateStreamContent(ctx context.Context, req *ChatCompletionRequest) <-chan string
 }
 
-type CompletionResponse struct {
-	ID      string             `json:"id"`
-	Object  string             `json:"object"`
-	Created int64              `json:"created"`
-	Model   string             `json:"model"`
-	Choices []CompletionChoice `json:"choices"`
+type GeminiProAdapter struct {
+	client *genai.Client
 }
 
-func GenaiResponseToStreamCompletionResponse(
+func NewGeminiProAdapter(client *genai.Client) GenaiModelAdapter {
+	return &GeminiProAdapter{
+		client: client,
+	}
+}
+
+func (g *GeminiProAdapter) GenerateContent(
+	ctx context.Context,
+	req *ChatCompletionRequest,
+) (*openai.ChatCompletionResponse, error) {
+	model := g.client.GenerativeModel(GeminiPro)
+	setGenaiModelByOpenaiRequest(model, req)
+
+	cs := model.StartChat()
+	setGenaiChatByOpenaiRequest(cs, req)
+
+	prompt := genai.Text(req.Messages[len(req.Messages)-1].Content)
+	genaiResp, err := cs.SendMessage(ctx, prompt)
+	if err != nil {
+		log.Printf("genai send message error %v\n", err)
+		return nil, errors.Wrap(err, "genai send message error")
+	}
+
+	openaiResp := genaiResponseToOpenaiResponse(genaiResp)
+	return &openaiResp, nil
+}
+
+func (g *GeminiProAdapter) GenerateStreamContent(
+	ctx context.Context,
+	req *ChatCompletionRequest,
+) <-chan string {
+	model := g.client.GenerativeModel(GeminiPro)
+	setGenaiModelByOpenaiRequest(model, req)
+
+	cs := model.StartChat()
+	setGenaiChatByOpenaiRequest(cs, req)
+
+	prompt := genai.Text(req.Messages[len(req.Messages)-1].Content)
+	iter := cs.SendMessageStream(ctx, prompt)
+
+	dataChan := make(chan string)
+	go handleStreamIter(iter, dataChan)
+
+	return dataChan
+}
+
+func handleStreamIter(iter *genai.GenerateContentResponseIterator, dataChan chan string) {
+	defer close(dataChan)
+
+	respID := util.GetUUID()
+	created := time.Now().Unix()
+
+	for {
+		genaiResp, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+
+		if err != nil {
+			log.Printf("genai get stream message error %v\n", err)
+			apiErr := openai.APIError{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+			}
+
+			resp, _ := json.Marshal(apiErr)
+			dataChan <- string(resp)
+			break
+		}
+
+		openaiResp := genaiResponseToStreamCompletionResponse(genaiResp, respID, created)
+		resp, _ := json.Marshal(openaiResp)
+		dataChan <- string(resp)
+
+		if len(openaiResp.Choices) > 0 && openaiResp.Choices[0].FinishReason != nil {
+			break
+		}
+	}
+}
+
+func genaiResponseToStreamCompletionResponse(
 	genaiResp *genai.GenerateContentResponse,
 	respID string,
 	created int64,
@@ -75,7 +153,7 @@ func GenaiResponseToStreamCompletionResponse(
 	return &resp
 }
 
-func GenaiResponseToOpenaiResponse(
+func genaiResponseToOpenaiResponse(
 	genaiResp *genai.GenerateContentResponse,
 ) openai.ChatCompletionResponse {
 	resp := openai.ChatCompletionResponse{
@@ -107,7 +185,7 @@ func GenaiResponseToOpenaiResponse(
 	return resp
 }
 
-func SetGenaiChatByOpenaiRequest(cs *genai.ChatSession, req openai.ChatCompletionRequest) {
+func setGenaiChatByOpenaiRequest(cs *genai.ChatSession, req *ChatCompletionRequest) {
 	cs.History = make([]*genai.Content, 0, len(req.Messages))
 	if len(req.Messages) > 1 {
 		for _, message := range req.Messages[:len(req.Messages)-1] {
@@ -155,10 +233,9 @@ func SetGenaiChatByOpenaiRequest(cs *genai.ChatSession, req openai.ChatCompletio
 	}
 }
 
-func SetGenaiModelByOpenaiRequest(model *genai.GenerativeModel, req openai.ChatCompletionRequest) {
+func setGenaiModelByOpenaiRequest(model *genai.GenerativeModel, req *ChatCompletionRequest) {
 	if req.MaxTokens != 0 {
-		maxToken := int32(req.MaxTokens)
-		model.MaxOutputTokens = &maxToken
+		model.MaxOutputTokens = &req.MaxTokens
 	}
 	if req.Temperature != 0 {
 		model.Temperature = &req.Temperature

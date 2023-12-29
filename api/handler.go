@@ -1,21 +1,17 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/generative-ai-go/genai"
 	openai "github.com/sashabaranov/go-openai"
-	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 
-	"github.com/zhu327/gemini-openai-proxy/pkg/protocol"
-	"github.com/zhu327/gemini-openai-proxy/pkg/util"
+	"github.com/zhu327/gemini-openai-proxy/pkg/adapter"
 )
 
 func IndexHandler(c *gin.Context) {
@@ -25,16 +21,16 @@ func IndexHandler(c *gin.Context) {
 }
 
 func ModelListHandler(c *gin.Context) {
-	model := openai.Model{
-		CreatedAt: 1686935002,
-		ID:        openai.GPT3Dot5Turbo,
-		Object:    "model",
-		OwnedBy:   "openai",
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"object": "list",
-		"data":   []any{model},
+		"data": []any{
+			openai.Model{
+				CreatedAt: 1686935002,
+				ID:        openai.GPT3Dot5Turbo,
+				Object:    "model",
+				OwnedBy:   "openai",
+			},
+		},
 	})
 }
 
@@ -57,19 +53,17 @@ func ChatProxyHandler(c *gin.Context) {
 	// Use fmt.Sscanf to extract the Bearer token
 	_, err := fmt.Sscanf(authorizationHeader, "Bearer %s", &openaiAPIKey)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, openai.APIError{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+		})
 		return
 	}
 
-	var req openai.ChatCompletionRequest
+	var req *adapter.ChatCompletionRequest
 	// Bind the JSON data from the request to the struct
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBindJSON(req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if len(req.Messages) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "request message must not be empty!"})
 		return
 	}
 
@@ -77,69 +71,40 @@ func ChatProxyHandler(c *gin.Context) {
 	client, err := genai.NewClient(ctx, option.WithAPIKey(openaiAPIKey))
 	if err != nil {
 		log.Printf("new genai client error %v\n", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, openai.APIError{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+		})
 		return
 	}
 	defer client.Close()
 
-	model := client.GenerativeModel(protocol.GeminiPro)
-	protocol.SetGenaiModelByOpenaiRequest(model, req)
-
-	cs := model.StartChat()
-	protocol.SetGenaiChatByOpenaiRequest(cs, req)
-
-	prompt := genai.Text(req.Messages[len(req.Messages)-1].Content)
+	gemini := adapter.NewGeminiProAdapter(client)
 
 	if !req.Stream {
-		genaiResp, err := cs.SendMessage(ctx, prompt)
+		resp, err := gemini.GenerateContent(ctx, req)
 		if err != nil {
-			log.Printf("genai send message error %v\n", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			log.Printf("genai generate content error %v\n", err)
+			c.JSON(http.StatusBadRequest, openai.APIError{
+				Code:    http.StatusBadRequest,
+				Message: err.Error(),
+			})
 			return
 		}
 
-		openaiResp := protocol.GenaiResponseToOpenaiResponse(genaiResp)
-		c.JSON(http.StatusOK, openaiResp)
+		c.JSON(http.StatusOK, resp)
 		return
 	}
 
-	iter := cs.SendMessageStream(ctx, prompt)
-	dataChan := make(chan string)
-	go func() {
-		defer close(dataChan)
-
-		respID := util.GetUUID()
-		created := time.Now().Unix()
-
-		for {
-			genaiResp, err := iter.Next()
-			if err == iterator.Done {
-				break
-			}
-
-			if err != nil {
-				log.Printf("genai get stream message error %v\n", err)
-				dataChan <- fmt.Sprintf(`{"error": "%s"}`, err.Error())
-				break
-			}
-
-			openaiResp := protocol.GenaiResponseToStreamCompletionResponse(genaiResp, respID, created)
-			resp, _ := json.Marshal(openaiResp)
-			dataChan <- string(resp)
-
-			if len(openaiResp.Choices) > 0 && openaiResp.Choices[0].FinishReason != nil {
-				break
-			}
-		}
-	}()
+	dataChan := gemini.GenerateStreamContent(ctx, req)
 
 	setEventStreamHeaders(c)
 	c.Stream(func(w io.Writer) bool {
 		if data, ok := <-dataChan; ok {
-			c.Render(-1, protocol.Event{Data: "data: " + data})
+			c.Render(-1, adapter.Event{Data: "data: " + data})
 			return true
 		}
-		c.Render(-1, protocol.Event{Data: "data: [DONE]"})
+		c.Render(-1, adapter.Event{Data: "data: [DONE]"})
 		return false
 	})
 }
