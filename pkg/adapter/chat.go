@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	GeminiPro = "gemini-pro"
+	GeminiPro       = "gemini-pro"
+	GeminiProVision = "gemini-pro-vision"
 
 	genaiRoleUser  = "user"
 	genaiRoleModel = "model"
@@ -25,7 +26,7 @@ const (
 
 type GenaiModelAdapter interface {
 	GenerateContent(ctx context.Context, req *ChatCompletionRequest) (*openai.ChatCompletionResponse, error)
-	GenerateStreamContent(ctx context.Context, req *ChatCompletionRequest) <-chan string
+	GenerateStreamContent(ctx context.Context, req *ChatCompletionRequest) (<-chan string, error)
 }
 
 type GeminiProAdapter struct {
@@ -51,7 +52,6 @@ func (g *GeminiProAdapter) GenerateContent(
 	prompt := genai.Text(req.Messages[len(req.Messages)-1].Content)
 	genaiResp, err := cs.SendMessage(ctx, prompt)
 	if err != nil {
-		log.Printf("genai send message error %v\n", err)
 		return nil, errors.Wrap(err, "genai send message error")
 	}
 
@@ -62,7 +62,7 @@ func (g *GeminiProAdapter) GenerateContent(
 func (g *GeminiProAdapter) GenerateStreamContent(
 	ctx context.Context,
 	req *ChatCompletionRequest,
-) <-chan string {
+) (<-chan string, error) {
 	model := g.client.GenerativeModel(GeminiPro)
 	setGenaiModelByOpenaiRequest(model, req)
 
@@ -75,7 +75,85 @@ func (g *GeminiProAdapter) GenerateStreamContent(
 	dataChan := make(chan string)
 	go handleStreamIter(iter, dataChan)
 
-	return dataChan
+	return dataChan, nil
+}
+
+type GeminiProVisionAdapter struct {
+	client *genai.Client
+}
+
+func NewGeminiProVisionAdapter(client *genai.Client) GenaiModelAdapter {
+	return &GeminiProVisionAdapter{
+		client: client,
+	}
+}
+
+func (g *GeminiProVisionAdapter) GenerateContent(
+	ctx context.Context,
+	req *ChatCompletionRequest,
+) (*openai.ChatCompletionResponse, error) {
+	model := g.client.GenerativeModel(GeminiProVision)
+	setGenaiModelByOpenaiRequest(model, req)
+
+	// NOTE: use last message as prompt, gemini pro vision does not support context
+	// https://ai.google.dev/tutorials/go_quickstart#multi-turn-conversations-chat
+	prompt, err := g.openaiMessageToGenaiPrompt(req.Messages[len(req.Messages)-1])
+	if err != nil {
+		return nil, errors.Wrap(err, "genai generate prompt error")
+	}
+
+	genaiResp, err := model.GenerateContent(ctx, prompt...)
+	if err != nil {
+		return nil, errors.Wrap(err, "genai send message error")
+	}
+
+	openaiResp := genaiResponseToOpenaiResponse(genaiResp)
+	return &openaiResp, nil
+}
+
+func (*GeminiProVisionAdapter) openaiMessageToGenaiPrompt(msg ChatCompletionMessage) ([]genai.Part, error) {
+	parts, err := msg.MultiContent()
+	if err != nil {
+		return nil, err
+	}
+
+	prompt := make([]genai.Part, 0, len(parts))
+	for _, part := range parts {
+		switch part.Type {
+		case openai.ChatMessagePartTypeText:
+			prompt = append(prompt, genai.Text(part.Text))
+		case openai.ChatMessagePartTypeImageURL:
+			data, format, err := parseImageURL(part.ImageURL.URL)
+			if err != nil {
+				return nil, errors.Wrap(err, "parse image url error")
+			}
+
+			prompt = append(prompt, genai.ImageData(format, data))
+		}
+	}
+	return prompt, nil
+}
+
+func (g *GeminiProVisionAdapter) GenerateStreamContent(
+	ctx context.Context,
+	req *ChatCompletionRequest,
+) (<-chan string, error) {
+	model := g.client.GenerativeModel(GeminiProVision)
+	setGenaiModelByOpenaiRequest(model, req)
+
+	// NOTE: use last message as prompt, gemini pro vision does not support context
+	// https://ai.google.dev/tutorials/go_quickstart#multi-turn-conversations-chat
+	prompt, err := g.openaiMessageToGenaiPrompt(req.Messages[len(req.Messages)-1])
+	if err != nil {
+		return nil, errors.Wrap(err, "genai generate prompt error")
+	}
+
+	iter := model.GenerateContentStream(ctx, prompt...)
+
+	dataChan := make(chan string)
+	go handleStreamIter(iter, dataChan)
+
+	return dataChan, nil
 }
 
 func handleStreamIter(iter *genai.GenerateContentResponseIterator, dataChan chan string) {

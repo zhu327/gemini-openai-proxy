@@ -60,7 +60,7 @@ func ChatProxyHandler(c *gin.Context) {
 		return
 	}
 
-	var req *adapter.ChatCompletionRequest
+	var req = &adapter.ChatCompletionRequest{}
 	// Bind the JSON data from the request to the struct
 	if err := c.ShouldBindJSON(req); err != nil {
 		c.JSON(http.StatusBadRequest, openai.APIError{
@@ -82,7 +82,12 @@ func ChatProxyHandler(c *gin.Context) {
 	}
 	defer client.Close()
 
-	gemini := adapter.NewGeminiProAdapter(client)
+	var gemini adapter.GenaiModelAdapter
+	if req.Model == openai.GPT4VisionPreview {
+		gemini = adapter.NewGeminiProVisionAdapter(client)
+	} else {
+		gemini = adapter.NewGeminiProAdapter(client)
+	}
 
 	if !req.Stream {
 		resp, err := gemini.GenerateContent(ctx, req)
@@ -99,7 +104,15 @@ func ChatProxyHandler(c *gin.Context) {
 		return
 	}
 
-	dataChan := gemini.GenerateStreamContent(ctx, req)
+	dataChan, err := gemini.GenerateStreamContent(ctx, req)
+	if err != nil {
+		log.Printf("genai generate content error %v\n", err)
+		c.JSON(http.StatusBadRequest, openai.APIError{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+		})
+		return
+	}
 
 	setEventStreamHeaders(c)
 	c.Stream(func(w io.Writer) bool {
