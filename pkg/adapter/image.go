@@ -16,6 +16,12 @@ func parseImageURL(imageURL string) ([]byte, string, error) {
 }
 
 func decodeBase64Image(base64String string) ([]byte, string, error) {
+	// get image format
+	format, err := getBase64ImageFormat(base64String)
+	if err != nil {
+		return nil, "", err
+	}
+
 	// Remove the base64 prefix (e.g., "data:image/png;base64,") if present
 	base64String = strings.TrimPrefix(base64String, "data:image/")
 	index := strings.Index(base64String, ";base64,")
@@ -29,16 +35,10 @@ func decodeBase64Image(base64String string) ([]byte, string, error) {
 		return nil, "", err
 	}
 
-	// get image format
-	format, err := getImageFormat(base64String)
-	if err != nil {
-		return nil, "", err
-	}
-
 	return data, format, nil
 }
 
-func getImageFormat(dataURI string) (string, error) {
+func getBase64ImageFormat(dataURI string) (string, error) {
 	// Find the index of "image/"
 	startIndex := strings.Index(dataURI, "image/")
 	if startIndex == -1 {

@@ -6,10 +6,13 @@ Gemini-OpenAI-Proxy is a proxy designed to convert the OpenAI API protocol to th
 
 ## Table of Contents
 
-- [Build](#build)
-- [Deploy](#deploy)
-- [Usage](#usage)
-- [License](#license)
+- [Gemini-OpenAI-Proxy](#gemini-openai-proxy)
+  - [Table of Contents](#table-of-contents)
+  - [Build](#build)
+  - [Deploy](#deploy)
+  - [Usage](#usage)
+  - [Compatibility Testing](#compatibility-testing)
+  - [License](#license)
 
 ---
 
@@ -45,10 +48,10 @@ Gemini-OpenAI-Proxy offers a straightforward way to integrate OpenAI functionali
 2. **Get Google AI Studio API Key:**
    Before using the proxy, you'll need to obtain an API key from [ai.google.dev](https://ai.google.dev). Treat this API key as your OpenAI API key when interacting with Gemini-OpenAI-Proxy.
 
-3. **Integrate Proxy into Your Application:**
-   Update your application's API requests to point to the Gemini-OpenAI-Proxy, providing the obtained Google AI Studio API key as if it were your OpenAI API key.
+3. **Integrate the Proxy into Your Application:**
+   Modify your application's API requests to target the Gemini-OpenAI-Proxy, providing the acquired Google AI Studio API key as if it were your OpenAI API key.
 
-   Example API Request (Assuming the proxy is running on `http://localhost:8080`):
+   Example API Request (Assuming the proxy is hosted at `http://localhost:8080`):
    ```bash
    curl http://localhost:8080/v1/chat/completions \
     -H "Content-Type: application/json" \
@@ -56,6 +59,27 @@ Gemini-OpenAI-Proxy offers a straightforward way to integrate OpenAI functionali
     -d '{
         "model": "gpt-3.5-turbo",
         "messages": [{"role": "user", "content": "Say this is a test!"}],
+        "temperature": 0.7
+    }'
+   ```
+
+   Alternatively, use Gemini Pro Vision:
+
+   ```bash
+   curl http://localhost:8080/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $YOUR_GOOGLE_AI_STUDIO_API_KEY" \
+    -d '{
+        "model": "gpt-4-vision-preview",
+        "messages": [{"role": "user", "content": [
+           {"type": "text", "text": "What’s in this image?"},
+           {
+             "type": "image_url",
+             "image_url": {
+               "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg"
+             }
+           }
+        ]}],
         "temperature": 0.7
     }'
    ```

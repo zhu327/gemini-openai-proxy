@@ -30,19 +30,24 @@ func ModelListHandler(c *gin.Context) {
 				Object:    "model",
 				OwnedBy:   "openai",
 			},
+			openai.Model{
+				CreatedAt: 1686935002,
+				ID:        openai.GPT4VisionPreview,
+				Object:    "model",
+				OwnedBy:   "openai",
+			},
 		},
 	})
 }
 
 func ModelRetrieveHandler(c *gin.Context) {
-	model := openai.Model{
+	model := c.Param("model")
+	c.JSON(http.StatusOK, openai.Model{
 		CreatedAt: 1686935002,
-		ID:        openai.GPT3Dot5Turbo,
+		ID:        model,
 		Object:    "model",
 		OwnedBy:   "openai",
-	}
-
-	c.JSON(http.StatusOK, model)
+	})
 }
 
 func ChatProxyHandler(c *gin.Context) {
@@ -83,9 +88,10 @@ func ChatProxyHandler(c *gin.Context) {
 	defer client.Close()
 
 	var gemini adapter.GenaiModelAdapter
-	if req.Model == openai.GPT4VisionPreview {
+	switch req.Model {
+	case openai.GPT4VisionPreview:
 		gemini = adapter.NewGeminiProVisionAdapter(client)
-	} else {
+	default:
 		gemini = adapter.NewGeminiProAdapter(client)
 	}
 

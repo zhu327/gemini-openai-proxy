@@ -20,7 +20,7 @@ func Register(router *gin.Engine) {
 	router.GET("/", IndexHandler)
 	// openai model
 	router.GET("/v1/models", ModelListHandler)
-	router.GET("/v1/models/gpt-3.5-turbo", ModelRetrieveHandler)
+	router.GET("/v1/models/:model", ModelRetrieveHandler)
 
 	// openai chat
 	router.POST("/v1/chat/completions", ChatProxyHandler)
