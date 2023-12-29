@@ -63,7 +63,10 @@ func ChatProxyHandler(c *gin.Context) {
 	var req *adapter.ChatCompletionRequest
 	// Bind the JSON data from the request to the struct
 	if err := c.ShouldBindJSON(req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, openai.APIError{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+		})
 		return
 	}
 
