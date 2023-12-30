@@ -49,7 +49,7 @@ func (g *GeminiProAdapter) GenerateContent(
 	cs := model.StartChat()
 	setGenaiChatByOpenaiRequest(cs, req)
 
-	prompt := genai.Text(req.Messages[len(req.Messages)-1].Content)
+	prompt := genai.Text(req.Messages[len(req.Messages)-1].StringContent())
 	genaiResp, err := cs.SendMessage(ctx, prompt)
 	if err != nil {
 		return nil, errors.Wrap(err, "genai send message error")
@@ -69,7 +69,7 @@ func (g *GeminiProAdapter) GenerateStreamContent(
 	cs := model.StartChat()
 	setGenaiChatByOpenaiRequest(cs, req)
 
-	prompt := genai.Text(req.Messages[len(req.Messages)-1].Content)
+	prompt := genai.Text(req.Messages[len(req.Messages)-1].StringContent())
 	iter := cs.SendMessageStream(ctx, prompt)
 
 	dataChan := make(chan string)
@@ -272,7 +272,7 @@ func setGenaiChatByOpenaiRequest(cs *genai.ChatSession, req *ChatCompletionReque
 				cs.History = append(cs.History, []*genai.Content{
 					{
 						Parts: []genai.Part{
-							genai.Text(message.Content),
+							genai.Text(message.StringContent()),
 						},
 						Role: genaiRoleUser,
 					},
@@ -286,14 +286,14 @@ func setGenaiChatByOpenaiRequest(cs *genai.ChatSession, req *ChatCompletionReque
 			case openai.ChatMessageRoleAssistant:
 				cs.History = append(cs.History, &genai.Content{
 					Parts: []genai.Part{
-						genai.Text(message.Content),
+						genai.Text(message.StringContent()),
 					},
 					Role: genaiRoleModel,
 				})
 			case openai.ChatMessageRoleUser:
 				cs.History = append(cs.History, &genai.Content{
 					Parts: []genai.Part{
-						genai.Text(message.Content),
+						genai.Text(message.StringContent()),
 					},
 					Role: genaiRoleUser,
 				})

@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/pkg/errors"
 	openai "github.com/sashabaranov/go-openai"
@@ -10,6 +11,10 @@ import (
 type ChatCompletionMessage struct {
 	Role    string          `json:"role"`
 	Content json.RawMessage `json:"content"`
+}
+
+func (m *ChatCompletionMessage) StringContent() string {
+	return strings.Trim(string(m.Content), "\"")
 }
 
 func (m *ChatCompletionMessage) MultiContent() (parts []openai.ChatMessagePart, err error) {
