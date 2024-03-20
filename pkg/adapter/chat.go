@@ -220,8 +220,11 @@ func genaiResponseToStreamCompletionResponse(
 			log.Printf("genai message finish reason %s\n", candidate.FinishReason.String())
 
 			var openaiFinishReason string = string(openai.FinishReasonStop)
-			if candidate.FinishReason == genai.FinishReasonMaxTokens {
+			switch candidate.FinishReason {
+			case genai.FinishReasonMaxTokens:
 				openaiFinishReason = string(openai.FinishReasonLength)
+			case genai.FinishReasonSafety, genai.FinishReasonRecitation:
+				openaiFinishReason = string(openai.FinishReasonContentFilter)
 			}
 			choice.FinishReason = &openaiFinishReason
 		}
@@ -250,13 +253,21 @@ func genaiResponseToOpenaiResponse(
 			}
 		}
 
+		openaiFinishReason := openai.FinishReasonStop
+		switch candidate.FinishReason {
+		case genai.FinishReasonMaxTokens:
+			openaiFinishReason = openai.FinishReasonLength
+		case genai.FinishReasonSafety, genai.FinishReasonRecitation:
+			openaiFinishReason = openai.FinishReasonContentFilter
+		}
+
 		choice := openai.ChatCompletionChoice{
 			Index: i,
 			Message: openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleAssistant,
 				Content: content,
 			},
-			FinishReason: openai.FinishReasonStop,
+			FinishReason: openaiFinishReason,
 		}
 		resp.Choices = append(resp.Choices, choice)
 	}
@@ -278,7 +289,7 @@ func setGenaiChatByOpenaiRequest(cs *genai.ChatSession, req *ChatCompletionReque
 					},
 					{
 						Parts: []genai.Part{
-							genai.Text("ok."),
+							genai.Text(""),
 						},
 						Role: genaiRoleModel,
 					},
@@ -304,7 +315,7 @@ func setGenaiChatByOpenaiRequest(cs *genai.ChatSession, req *ChatCompletionReque
 	if len(cs.History) != 0 && cs.History[len(cs.History)-1].Role != genaiRoleModel {
 		cs.History = append(cs.History, &genai.Content{
 			Parts: []genai.Part{
-				genai.Text("ok."),
+				genai.Text(""),
 			},
 			Role: genaiRoleModel,
 		})
@@ -320,6 +331,9 @@ func setGenaiModelByOpenaiRequest(model *genai.GenerativeModel, req *ChatComplet
 	}
 	if req.TopP != 0 {
 		model.TopP = &req.TopP
+	}
+	if len(req.Stop) != 0 {
+		model.StopSequences = req.Stop
 	}
 	model.SafetySettings = []*genai.SafetySetting{
 		{

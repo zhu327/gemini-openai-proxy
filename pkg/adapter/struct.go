@@ -34,6 +34,7 @@ type ChatCompletionRequest struct {
 	TopP        float32                 `json:"top_p" binding:"omitempty"`
 	N           int32                   `json:"n" binding:"omitempty"`
 	Stream      bool                    `json:"stream" binding:"omitempty"`
+	Stop        []string                `json:"stop,omitempty"`
 }
 
 type CompletionChoice struct {
