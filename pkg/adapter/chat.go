@@ -218,14 +218,7 @@ func genaiResponseToStreamCompletionResponse(
 
 		if candidate.FinishReason > genai.FinishReasonStop {
 			log.Printf("genai message finish reason %s\n", candidate.FinishReason.String())
-
-			var openaiFinishReason string = string(openai.FinishReasonStop)
-			switch candidate.FinishReason {
-			case genai.FinishReasonMaxTokens:
-				openaiFinishReason = string(openai.FinishReasonLength)
-			case genai.FinishReasonSafety, genai.FinishReasonRecitation:
-				openaiFinishReason = string(openai.FinishReasonContentFilter)
-			}
+			openaiFinishReason := string(convertFinishReason(candidate.FinishReason))
 			choice.FinishReason = &openaiFinishReason
 		}
 
@@ -253,25 +246,28 @@ func genaiResponseToOpenaiResponse(
 			}
 		}
 
-		openaiFinishReason := openai.FinishReasonStop
-		switch candidate.FinishReason {
-		case genai.FinishReasonMaxTokens:
-			openaiFinishReason = openai.FinishReasonLength
-		case genai.FinishReasonSafety, genai.FinishReasonRecitation:
-			openaiFinishReason = openai.FinishReasonContentFilter
-		}
-
 		choice := openai.ChatCompletionChoice{
 			Index: i,
 			Message: openai.ChatCompletionMessage{
 				Role:    openai.ChatMessageRoleAssistant,
 				Content: content,
 			},
-			FinishReason: openaiFinishReason,
+			FinishReason: convertFinishReason(candidate.FinishReason),
 		}
 		resp.Choices = append(resp.Choices, choice)
 	}
 	return resp
+}
+
+func convertFinishReason(reason genai.FinishReason) openai.FinishReason {
+	openaiFinishReason := openai.FinishReasonStop
+	switch reason {
+	case genai.FinishReasonMaxTokens:
+		openaiFinishReason = openai.FinishReasonLength
+	case genai.FinishReasonSafety, genai.FinishReasonRecitation:
+		openaiFinishReason = openai.FinishReasonContentFilter
+	}
+	return openaiFinishReason
 }
 
 func setGenaiChatByOpenaiRequest(cs *genai.ChatSession, req *ChatCompletionRequest) {
