@@ -84,6 +84,19 @@ Gemini-OpenAI-Proxy offers a straightforward way to integrate OpenAI functionali
     }'
    ```
 
+   If you already have access to the Gemini 1.5 Pro api, you can use:
+
+   ```bash
+   curl http://localhost:8080/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $YOUR_GOOGLE_AI_STUDIO_API_KEY" \
+    -d '{
+        "model": "gpt-4-turbo-preview",
+        "messages": [{"role": "user", "content": "Say this is a test!"}],
+        "temperature": 0.7
+    }'
+   ```
+
 4. **Handle Responses:**
    Process the responses from the Gemini-OpenAI-Proxy in the same way you would handle responses from OpenAI.
 

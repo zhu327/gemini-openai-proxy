@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	GeminiPro       = "gemini-pro"
+	Gemini1Pro      = "gemini-1.0-pro-latest"
+	Gemini1Dot5Pro  = "gemini-1.5-pro-latest"
 	GeminiProVision = "gemini-pro-vision"
 
 	genaiRoleUser  = "user"
@@ -31,11 +32,13 @@ type GenaiModelAdapter interface {
 
 type GeminiProAdapter struct {
 	client *genai.Client
+	model  string
 }
 
-func NewGeminiProAdapter(client *genai.Client) GenaiModelAdapter {
+func NewGeminiProAdapter(client *genai.Client, model string) GenaiModelAdapter {
 	return &GeminiProAdapter{
 		client: client,
+		model:  model,
 	}
 }
 
@@ -43,7 +46,7 @@ func (g *GeminiProAdapter) GenerateContent(
 	ctx context.Context,
 	req *ChatCompletionRequest,
 ) (*openai.ChatCompletionResponse, error) {
-	model := g.client.GenerativeModel(GeminiPro)
+	model := g.client.GenerativeModel(g.model)
 	setGenaiModelByOpenaiRequest(model, req)
 
 	cs := model.StartChat()
@@ -63,7 +66,7 @@ func (g *GeminiProAdapter) GenerateStreamContent(
 	ctx context.Context,
 	req *ChatCompletionRequest,
 ) (<-chan string, error) {
-	model := g.client.GenerativeModel(GeminiPro)
+	model := g.client.GenerativeModel(g.model)
 	setGenaiModelByOpenaiRequest(model, req)
 
 	cs := model.StartChat()
@@ -199,7 +202,7 @@ func genaiResponseToStreamCompletionResponse(
 		ID:      fmt.Sprintf("chatcmpl-%s", respID),
 		Object:  "chat.completion.chunk",
 		Created: created,
-		Model:   GeminiPro,
+		Model:   Gemini1Pro,
 		Choices: make([]CompletionChoice, 0, len(genaiResp.Candidates)),
 	}
 
@@ -234,7 +237,7 @@ func genaiResponseToOpenaiResponse(
 		ID:      fmt.Sprintf("chatcmpl-%s", util.GetUUID()),
 		Object:  "chat.completion",
 		Created: time.Now().Unix(),
-		Model:   GeminiPro,
+		Model:   Gemini1Pro,
 		Choices: make([]openai.ChatCompletionChoice, 0, len(genaiResp.Candidates)),
 	}
 
