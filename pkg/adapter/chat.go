@@ -17,9 +17,9 @@ import (
 )
 
 const (
-	Gemini1Pro      = "gemini-1.0-pro-latest"
-	Gemini1Dot5Pro  = "gemini-1.5-pro-latest"
-	GeminiProVision = "gemini-pro-vision"
+	Gemini1Pro       = "gemini-1.0-pro-latest"
+	Gemini1Dot5Pro   = "gemini-1.5-pro-latest"
+	Gemini1ProVision = "gemini-1.0-pro-vision-latest"
 
 	genaiRoleUser  = "user"
 	genaiRoleModel = "model"
@@ -58,7 +58,7 @@ func (g *GeminiProAdapter) GenerateContent(
 		return nil, errors.Wrap(err, "genai send message error")
 	}
 
-	openaiResp := genaiResponseToOpenaiResponse(genaiResp)
+	openaiResp := genaiResponseToOpenaiResponse(genaiResp, g.model)
 	return &openaiResp, nil
 }
 
@@ -76,7 +76,7 @@ func (g *GeminiProAdapter) GenerateStreamContent(
 	iter := cs.SendMessageStream(ctx, prompt)
 
 	dataChan := make(chan string)
-	go handleStreamIter(iter, dataChan)
+	go handleStreamIter(iter, dataChan, g.model)
 
 	return dataChan, nil
 }
@@ -95,7 +95,7 @@ func (g *GeminiProVisionAdapter) GenerateContent(
 	ctx context.Context,
 	req *ChatCompletionRequest,
 ) (*openai.ChatCompletionResponse, error) {
-	model := g.client.GenerativeModel(GeminiProVision)
+	model := g.client.GenerativeModel(Gemini1ProVision)
 	setGenaiModelByOpenaiRequest(model, req)
 
 	// NOTE: use last message as prompt, gemini pro vision does not support context
@@ -110,7 +110,7 @@ func (g *GeminiProVisionAdapter) GenerateContent(
 		return nil, errors.Wrap(err, "genai send message error")
 	}
 
-	openaiResp := genaiResponseToOpenaiResponse(genaiResp)
+	openaiResp := genaiResponseToOpenaiResponse(genaiResp, Gemini1ProVision)
 	return &openaiResp, nil
 }
 
@@ -141,7 +141,7 @@ func (g *GeminiProVisionAdapter) GenerateStreamContent(
 	ctx context.Context,
 	req *ChatCompletionRequest,
 ) (<-chan string, error) {
-	model := g.client.GenerativeModel(GeminiProVision)
+	model := g.client.GenerativeModel(Gemini1ProVision)
 	setGenaiModelByOpenaiRequest(model, req)
 
 	// NOTE: use last message as prompt, gemini pro vision does not support context
@@ -154,12 +154,12 @@ func (g *GeminiProVisionAdapter) GenerateStreamContent(
 	iter := model.GenerateContentStream(ctx, prompt...)
 
 	dataChan := make(chan string)
-	go handleStreamIter(iter, dataChan)
+	go handleStreamIter(iter, dataChan, Gemini1ProVision)
 
 	return dataChan, nil
 }
 
-func handleStreamIter(iter *genai.GenerateContentResponseIterator, dataChan chan string) {
+func handleStreamIter(iter *genai.GenerateContentResponseIterator, dataChan chan string, model string) {
 	defer close(dataChan)
 
 	respID := util.GetUUID()
@@ -183,7 +183,7 @@ func handleStreamIter(iter *genai.GenerateContentResponseIterator, dataChan chan
 			break
 		}
 
-		openaiResp := genaiResponseToStreamCompletionResponse(genaiResp, respID, created)
+		openaiResp := genaiResponseToStreamCompletionResponse(genaiResp, respID, created, model)
 		resp, _ := json.Marshal(openaiResp)
 		dataChan <- string(resp)
 
@@ -197,12 +197,13 @@ func genaiResponseToStreamCompletionResponse(
 	genaiResp *genai.GenerateContentResponse,
 	respID string,
 	created int64,
+	model string,
 ) *CompletionResponse {
 	resp := CompletionResponse{
 		ID:      fmt.Sprintf("chatcmpl-%s", respID),
 		Object:  "chat.completion.chunk",
 		Created: created,
-		Model:   Gemini1Pro,
+		Model:   model,
 		Choices: make([]CompletionChoice, 0, len(genaiResp.Candidates)),
 	}
 
@@ -231,13 +232,13 @@ func genaiResponseToStreamCompletionResponse(
 }
 
 func genaiResponseToOpenaiResponse(
-	genaiResp *genai.GenerateContentResponse,
+	genaiResp *genai.GenerateContentResponse, model string,
 ) openai.ChatCompletionResponse {
 	resp := openai.ChatCompletionResponse{
 		ID:      fmt.Sprintf("chatcmpl-%s", util.GetUUID()),
 		Object:  "chat.completion",
 		Created: time.Now().Unix(),
-		Model:   Gemini1Pro,
+		Model:   model,
 		Choices: make([]openai.ChatCompletionChoice, 0, len(genaiResp.Candidates)),
 	}
 
