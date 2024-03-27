@@ -33,6 +33,12 @@ func ModelListHandler(c *gin.Context) {
 			},
 			openai.Model{
 				CreatedAt: 1686935002,
+				ID:        openai.GPT4,
+				Object:    "model",
+				OwnedBy:   "openai",
+			},
+			openai.Model{
+				CreatedAt: 1686935002,
 				ID:        openai.GPT4TurboPreview,
 				Object:    "model",
 				OwnedBy:   "openai",
@@ -98,8 +104,10 @@ func ChatProxyHandler(c *gin.Context) {
 	switch {
 	case req.Model == openai.GPT4VisionPreview:
 		gemini = adapter.NewGeminiProVisionAdapter(client)
-	case strings.HasPrefix(req.Model, openai.GPT4):
+	case req.Model == openai.GPT4TurboPreview || req.Model == openai.GPT4Turbo1106 || req.Model == openai.GPT4Turbo0125:
 		gemini = adapter.NewGeminiProAdapter(client, adapter.Gemini1Dot5Pro)
+	case strings.HasPrefix(req.Model, openai.GPT4):
+		gemini = adapter.NewGeminiProAdapter(client, adapter.Gemini1Ultra)
 	default:
 		gemini = adapter.NewGeminiProAdapter(client, adapter.Gemini1Pro)
 	}
