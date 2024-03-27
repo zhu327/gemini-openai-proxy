@@ -97,6 +97,15 @@ Gemini-OpenAI-Proxy offers a straightforward way to integrate OpenAI functionali
     }'
    ```
 
+   Model Mapping:
+
+   - gpt-3.5-turbo -> gemini-1.0-pro-latest
+   - gpt-4 -> gemini-1.0-ultra-latest
+   - gpt-4-turbo-preview -> gemini-1.5-pro-latest
+   - gpt-4-vision-preview -> gemini-1.0-pro-vision-latest
+
+   These are the corresponding model mappings for your reference. We've aligned the models from our project with the latest offerings from Gemini, ensuring compatibility and seamless integration.
+
 4. **Handle Responses:**
    Process the responses from the Gemini-OpenAI-Proxy in the same way you would handle responses from OpenAI.
 
