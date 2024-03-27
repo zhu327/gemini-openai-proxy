@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/generative-ai-go/genai"
@@ -27,6 +28,18 @@ func ModelListHandler(c *gin.Context) {
 			openai.Model{
 				CreatedAt: 1686935002,
 				ID:        openai.GPT3Dot5Turbo,
+				Object:    "model",
+				OwnedBy:   "openai",
+			},
+			openai.Model{
+				CreatedAt: 1686935002,
+				ID:        openai.GPT4,
+				Object:    "model",
+				OwnedBy:   "openai",
+			},
+			openai.Model{
+				CreatedAt: 1686935002,
+				ID:        openai.GPT4TurboPreview,
 				Object:    "model",
 				OwnedBy:   "openai",
 			},
@@ -88,11 +101,15 @@ func ChatProxyHandler(c *gin.Context) {
 	defer client.Close()
 
 	var gemini adapter.GenaiModelAdapter
-	switch req.Model {
-	case openai.GPT4VisionPreview:
+	switch {
+	case req.Model == openai.GPT4VisionPreview:
 		gemini = adapter.NewGeminiProVisionAdapter(client)
+	case req.Model == openai.GPT4TurboPreview || req.Model == openai.GPT4Turbo1106 || req.Model == openai.GPT4Turbo0125:
+		gemini = adapter.NewGeminiProAdapter(client, adapter.Gemini1Dot5Pro)
+	case strings.HasPrefix(req.Model, openai.GPT4):
+		gemini = adapter.NewGeminiProAdapter(client, adapter.Gemini1Ultra)
 	default:
-		gemini = adapter.NewGeminiProAdapter(client)
+		gemini = adapter.NewGeminiProAdapter(client, adapter.Gemini1Pro)
 	}
 
 	if !req.Stream {
