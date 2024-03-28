@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/generative-ai-go/genai"
@@ -88,6 +87,15 @@ func ChatProxyHandler(c *gin.Context) {
 		return
 	}
 
+	content, err := req.ToGenaiContent()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, openai.APIError{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+		})
+		return
+	}
+
 	ctx := c.Request.Context()
 	client, err := genai.NewClient(ctx, option.WithAPIKey(openaiAPIKey))
 	if err != nil {
@@ -100,20 +108,11 @@ func ChatProxyHandler(c *gin.Context) {
 	}
 	defer client.Close()
 
-	var gemini adapter.GenaiModelAdapter
-	switch {
-	case req.Model == openai.GPT4VisionPreview:
-		gemini = adapter.NewGeminiProVisionAdapter(client)
-	case req.Model == openai.GPT4TurboPreview || req.Model == openai.GPT4Turbo1106 || req.Model == openai.GPT4Turbo0125:
-		gemini = adapter.NewGeminiProAdapter(client, adapter.Gemini1Dot5Pro)
-	case strings.HasPrefix(req.Model, openai.GPT4):
-		gemini = adapter.NewGeminiProAdapter(client, adapter.Gemini1Ultra)
-	default:
-		gemini = adapter.NewGeminiProAdapter(client, adapter.Gemini1Pro)
-	}
+	model := req.ToGenaiModel()
+	gemini := adapter.NewGeminiAdapter(client, model)
 
 	if !req.Stream {
-		resp, err := gemini.GenerateContent(ctx, req)
+		resp, err := gemini.GenerateContent(ctx, req, content)
 		if err != nil {
 			log.Printf("genai generate content error %v\n", err)
 			c.JSON(http.StatusBadRequest, openai.APIError{
@@ -127,7 +126,7 @@ func ChatProxyHandler(c *gin.Context) {
 		return
 	}
 
-	dataChan, err := gemini.GenerateStreamContent(ctx, req)
+	dataChan, err := gemini.GenerateStreamContent(ctx, req, content)
 	if err != nil {
 		log.Printf("genai generate content error %v\n", err)
 		c.JSON(http.StatusBadRequest, openai.APIError{

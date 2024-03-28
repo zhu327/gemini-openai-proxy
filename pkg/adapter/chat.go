@@ -26,141 +26,58 @@ const (
 	genaiRoleModel = "model"
 )
 
-type GenaiModelAdapter interface {
-	GenerateContent(ctx context.Context, req *ChatCompletionRequest) (*openai.ChatCompletionResponse, error)
-	GenerateStreamContent(ctx context.Context, req *ChatCompletionRequest) (<-chan string, error)
-}
-
-type GeminiProAdapter struct {
+type GeminiAdapter struct {
 	client *genai.Client
 	model  string
 }
 
-func NewGeminiProAdapter(client *genai.Client, model string) GenaiModelAdapter {
-	return &GeminiProAdapter{
+func NewGeminiAdapter(client *genai.Client, model string) *GeminiAdapter {
+	return &GeminiAdapter{
 		client: client,
 		model:  model,
 	}
 }
 
-func (g *GeminiProAdapter) GenerateContent(
+func (g *GeminiAdapter) GenerateContent(
 	ctx context.Context,
 	req *ChatCompletionRequest,
+	content []*genai.Content,
 ) (*openai.ChatCompletionResponse, error) {
 	model := g.client.GenerativeModel(g.model)
 	setGenaiModelByOpenaiRequest(model, req)
 
 	cs := model.StartChat()
-	setGenaiChatByOpenaiRequest(cs, req)
+	setGenaiChatHistory(cs, content)
 
-	prompt := genai.Text(req.Messages[len(req.Messages)-1].StringContent())
-	genaiResp, err := cs.SendMessage(ctx, prompt)
+	genaiResp, err := cs.SendMessage(ctx, content[len(content)-1].Parts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "genai send message error")
 	}
 
-	openaiResp := genaiResponseToOpenaiResponse(genaiResp, g.model)
+	openaiResp := genaiResponseToOpenaiResponse(g.model, genaiResp)
 	return &openaiResp, nil
 }
 
-func (g *GeminiProAdapter) GenerateStreamContent(
+func (g *GeminiAdapter) GenerateStreamContent(
 	ctx context.Context,
 	req *ChatCompletionRequest,
+	content []*genai.Content,
 ) (<-chan string, error) {
 	model := g.client.GenerativeModel(g.model)
 	setGenaiModelByOpenaiRequest(model, req)
 
 	cs := model.StartChat()
-	setGenaiChatByOpenaiRequest(cs, req)
+	setGenaiChatHistory(cs, content)
 
-	prompt := genai.Text(req.Messages[len(req.Messages)-1].StringContent())
-	iter := cs.SendMessageStream(ctx, prompt)
+	iter := cs.SendMessageStream(ctx, content[len(content)-1].Parts...)
 
 	dataChan := make(chan string)
-	go handleStreamIter(iter, dataChan, g.model)
+	go handleStreamIter(g.model, iter, dataChan)
 
 	return dataChan, nil
 }
 
-type GeminiProVisionAdapter struct {
-	client *genai.Client
-}
-
-func NewGeminiProVisionAdapter(client *genai.Client) GenaiModelAdapter {
-	return &GeminiProVisionAdapter{
-		client: client,
-	}
-}
-
-func (g *GeminiProVisionAdapter) GenerateContent(
-	ctx context.Context,
-	req *ChatCompletionRequest,
-) (*openai.ChatCompletionResponse, error) {
-	model := g.client.GenerativeModel(Gemini1ProVision)
-	setGenaiModelByOpenaiRequest(model, req)
-
-	// NOTE: use last message as prompt, gemini pro vision does not support context
-	// https://ai.google.dev/tutorials/go_quickstart#multi-turn-conversations-chat
-	prompt, err := g.openaiMessageToGenaiPrompt(req.Messages[len(req.Messages)-1])
-	if err != nil {
-		return nil, errors.Wrap(err, "genai generate prompt error")
-	}
-
-	genaiResp, err := model.GenerateContent(ctx, prompt...)
-	if err != nil {
-		return nil, errors.Wrap(err, "genai send message error")
-	}
-
-	openaiResp := genaiResponseToOpenaiResponse(genaiResp, Gemini1ProVision)
-	return &openaiResp, nil
-}
-
-func (*GeminiProVisionAdapter) openaiMessageToGenaiPrompt(msg ChatCompletionMessage) ([]genai.Part, error) {
-	parts, err := msg.MultiContent()
-	if err != nil {
-		return nil, err
-	}
-
-	prompt := make([]genai.Part, 0, len(parts))
-	for _, part := range parts {
-		switch part.Type {
-		case openai.ChatMessagePartTypeText:
-			prompt = append(prompt, genai.Text(part.Text))
-		case openai.ChatMessagePartTypeImageURL:
-			data, format, err := parseImageURL(part.ImageURL.URL)
-			if err != nil {
-				return nil, errors.Wrap(err, "parse image url error")
-			}
-
-			prompt = append(prompt, genai.ImageData(format, data))
-		}
-	}
-	return prompt, nil
-}
-
-func (g *GeminiProVisionAdapter) GenerateStreamContent(
-	ctx context.Context,
-	req *ChatCompletionRequest,
-) (<-chan string, error) {
-	model := g.client.GenerativeModel(Gemini1ProVision)
-	setGenaiModelByOpenaiRequest(model, req)
-
-	// NOTE: use last message as prompt, gemini pro vision does not support context
-	// https://ai.google.dev/tutorials/go_quickstart#multi-turn-conversations-chat
-	prompt, err := g.openaiMessageToGenaiPrompt(req.Messages[len(req.Messages)-1])
-	if err != nil {
-		return nil, errors.Wrap(err, "genai generate prompt error")
-	}
-
-	iter := model.GenerateContentStream(ctx, prompt...)
-
-	dataChan := make(chan string)
-	go handleStreamIter(iter, dataChan, Gemini1ProVision)
-
-	return dataChan, nil
-}
-
-func handleStreamIter(iter *genai.GenerateContentResponseIterator, dataChan chan string, model string) {
+func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator, dataChan chan string) {
 	defer close(dataChan)
 
 	respID := util.GetUUID()
@@ -184,7 +101,7 @@ func handleStreamIter(iter *genai.GenerateContentResponseIterator, dataChan chan
 			break
 		}
 
-		openaiResp := genaiResponseToStreamCompletionResponse(genaiResp, respID, created, model)
+		openaiResp := genaiResponseToStreamCompletionResponse(model, genaiResp, respID, created)
 		resp, _ := json.Marshal(openaiResp)
 		dataChan <- string(resp)
 
@@ -195,10 +112,10 @@ func handleStreamIter(iter *genai.GenerateContentResponseIterator, dataChan chan
 }
 
 func genaiResponseToStreamCompletionResponse(
+	model string,
 	genaiResp *genai.GenerateContentResponse,
 	respID string,
 	created int64,
-	model string,
 ) *CompletionResponse {
 	resp := CompletionResponse{
 		ID:      fmt.Sprintf("chatcmpl-%s", respID),
@@ -233,7 +150,7 @@ func genaiResponseToStreamCompletionResponse(
 }
 
 func genaiResponseToOpenaiResponse(
-	genaiResp *genai.GenerateContentResponse, model string,
+	model string, genaiResp *genai.GenerateContentResponse,
 ) openai.ChatCompletionResponse {
 	resp := openai.ChatCompletionResponse{
 		ID:      fmt.Sprintf("chatcmpl-%s", util.GetUUID()),
@@ -275,42 +192,10 @@ func convertFinishReason(reason genai.FinishReason) openai.FinishReason {
 	return openaiFinishReason
 }
 
-func setGenaiChatByOpenaiRequest(cs *genai.ChatSession, req *ChatCompletionRequest) {
-	cs.History = make([]*genai.Content, 0, len(req.Messages))
-	if len(req.Messages) > 1 {
-		for _, message := range req.Messages[:len(req.Messages)-1] {
-			switch message.Role {
-			case openai.ChatMessageRoleSystem:
-				cs.History = append(cs.History, []*genai.Content{
-					{
-						Parts: []genai.Part{
-							genai.Text(message.StringContent()),
-						},
-						Role: genaiRoleUser,
-					},
-					{
-						Parts: []genai.Part{
-							genai.Text(""),
-						},
-						Role: genaiRoleModel,
-					},
-				}...)
-			case openai.ChatMessageRoleAssistant:
-				cs.History = append(cs.History, &genai.Content{
-					Parts: []genai.Part{
-						genai.Text(message.StringContent()),
-					},
-					Role: genaiRoleModel,
-				})
-			case openai.ChatMessageRoleUser:
-				cs.History = append(cs.History, &genai.Content{
-					Parts: []genai.Part{
-						genai.Text(message.StringContent()),
-					},
-					Role: genaiRoleUser,
-				})
-			}
-		}
+func setGenaiChatHistory(cs *genai.ChatSession, content []*genai.Content) {
+	cs.History = make([]*genai.Content, 0, len(content))
+	if len(content) > 1 {
+		cs.History = content[:len(content)-1]
 	}
 
 	if len(cs.History) != 0 && cs.History[len(cs.History)-1].Role != genaiRoleModel {

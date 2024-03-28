@@ -104,6 +104,8 @@ Gemini-OpenAI-Proxy offers a straightforward way to integrate OpenAI functionali
    - gpt-4-turbo-preview -> gemini-1.5-pro-latest
    - gpt-4-vision-preview -> gemini-1.0-pro-vision-latest
 
+   If you wish to map `gpt-4-vision-preview` to `gemini-1.5-pro-latest`, you can configure the environment variable `GPT_4_VISION_PREVIEW = gemini-1.5-pro-latest`. This is because `gemini-1.5-pro-latest` now also supports multi-modal data.
+
    These are the corresponding model mappings for your reference. We've aligned the models from our project with the latest offerings from Gemini, ensuring compatibility and seamless integration.
 
 4. **Handle Responses:**

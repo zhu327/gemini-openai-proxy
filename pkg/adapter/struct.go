@@ -2,8 +2,10 @@ package adapter
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 
+	"github.com/google/generative-ai-go/genai"
 	"github.com/pkg/errors"
 	openai "github.com/sashabaranov/go-openai"
 )
@@ -13,11 +15,15 @@ type ChatCompletionMessage struct {
 	Content json.RawMessage `json:"content"`
 }
 
-func (m *ChatCompletionMessage) StringContent() string {
-	return strings.Trim(string(m.Content), "\"")
+func (m *ChatCompletionMessage) stringContent() (str string, err error) {
+	err = json.Unmarshal(m.Content, &str)
+	if err != nil {
+		return "", errors.Wrap(err, "json.Unmarshal")
+	}
+	return
 }
 
-func (m *ChatCompletionMessage) MultiContent() (parts []openai.ChatMessagePart, err error) {
+func (m *ChatCompletionMessage) multiContent() (parts []openai.ChatMessagePart, err error) {
 	err = json.Unmarshal(m.Content, &parts)
 	if err != nil {
 		return nil, errors.Wrap(err, "json.Unmarshal")
@@ -35,6 +41,124 @@ type ChatCompletionRequest struct {
 	N           int32                   `json:"n" binding:"omitempty"`
 	Stream      bool                    `json:"stream" binding:"omitempty"`
 	Stop        []string                `json:"stop,omitempty"`
+}
+
+func (req *ChatCompletionRequest) ToGenaiModel() string {
+	switch {
+	case req.Model == openai.GPT4VisionPreview:
+		if os.Getenv("GPT_4_VISION_PREVIEW") == Gemini1Dot5Pro {
+			return Gemini1Dot5Pro
+		}
+
+		return Gemini1ProVision
+	case req.Model == openai.GPT4TurboPreview || req.Model == openai.GPT4Turbo1106 || req.Model == openai.GPT4Turbo0125:
+		return Gemini1Dot5Pro
+	case strings.HasPrefix(req.Model, openai.GPT4):
+		return Gemini1Ultra
+	default:
+		return Gemini1Pro
+	}
+}
+
+func (req *ChatCompletionRequest) ToGenaiContent() ([]*genai.Content, error) {
+	if req.Model == openai.GPT4VisionPreview {
+		return req.toVisionGenaiContent()
+	}
+
+	return req.toStringGenaiContent()
+}
+
+func (req *ChatCompletionRequest) toVisionGenaiContent() ([]*genai.Content, error) {
+	content := make([]*genai.Content, 0, len(req.Messages))
+	for _, message := range req.Messages {
+		parts, err := message.multiContent()
+		if err != nil {
+			return nil, errors.Wrap(err, "message.multiContent")
+		}
+
+		prompt := make([]genai.Part, 0, len(parts))
+		for _, part := range parts {
+			switch part.Type {
+			case openai.ChatMessagePartTypeText:
+				prompt = append(prompt, genai.Text(part.Text))
+			case openai.ChatMessagePartTypeImageURL:
+				data, format, err := parseImageURL(part.ImageURL.URL)
+				if err != nil {
+					return nil, errors.Wrap(err, "parse image url error")
+				}
+
+				prompt = append(prompt, genai.ImageData(format, data))
+			}
+		}
+
+		switch message.Role {
+		case openai.ChatMessageRoleSystem:
+			content = append(content, []*genai.Content{
+				{
+					Parts: prompt,
+					Role:  genaiRoleUser,
+				},
+				{
+					Parts: []genai.Part{
+						genai.Text(""),
+					},
+					Role: genaiRoleModel,
+				},
+			}...)
+		case openai.ChatMessageRoleAssistant:
+			content = append(content, &genai.Content{
+				Parts: prompt,
+				Role:  genaiRoleModel,
+			})
+		case openai.ChatMessageRoleUser:
+			content = append(content, &genai.Content{
+				Parts: prompt,
+				Role:  genaiRoleUser,
+			})
+		}
+	}
+	return content, nil
+}
+
+func (req *ChatCompletionRequest) toStringGenaiContent() ([]*genai.Content, error) {
+	content := make([]*genai.Content, 0, len(req.Messages))
+	for _, message := range req.Messages {
+		str, err := message.stringContent()
+		if err != nil {
+			return nil, errors.Wrap(err, "message.stringContent")
+		}
+
+		prompt := []genai.Part{
+			genai.Text(str),
+		}
+
+		switch message.Role {
+		case openai.ChatMessageRoleSystem:
+			content = append(content, []*genai.Content{
+				{
+					Parts: prompt,
+					Role:  genaiRoleUser,
+				},
+				{
+					Parts: []genai.Part{
+						genai.Text(""),
+					},
+					Role: genaiRoleModel,
+				},
+			}...)
+		case openai.ChatMessageRoleAssistant:
+			content = append(content, &genai.Content{
+				Parts: prompt,
+				Role:  genaiRoleModel,
+			})
+		case openai.ChatMessageRoleUser:
+			content = append(content, &genai.Content{
+				Parts: prompt,
+				Role:  genaiRoleUser,
+			})
+		}
+	}
+	return content, nil
 }
 
 type CompletionChoice struct {
