@@ -11,7 +11,7 @@ Gemini-OpenAI-Proxy is a proxy designed to convert the OpenAI API protocol to th
   - [Build](#build)
   - [Deploy](#deploy)
   - [Usage](#usage)
-  - [Compatibility Testing](#compatibility-testing)
+  - [Compatibility](#compatibility)
   - [License](#license)
 
 ---
@@ -106,16 +106,14 @@ Gemini-OpenAI-Proxy offers a straightforward way to integrate OpenAI functionali
 
    If you wish to map `gpt-4-vision-preview` to `gemini-1.5-pro-latest`, you can configure the environment variable `GPT_4_VISION_PREVIEW = gemini-1.5-pro-latest`. This is because `gemini-1.5-pro-latest` now also supports multi-modal data.
 
-   These are the corresponding model mappings for your reference. We've aligned the models from our project with the latest offerings from Gemini, ensuring compatibility and seamless integration.
-
 4. **Handle Responses:**
    Process the responses from the Gemini-OpenAI-Proxy in the same way you would handle responses from OpenAI.
 
 Now, your application is equipped to leverage OpenAI functionality through the Gemini-OpenAI-Proxy, bridging the gap between OpenAI and applications using the Google Gemini Pro protocol.
 
-## Compatibility Testing
+## Compatibility
 
-Gemini-OpenAI-Proxy is designed to seamlessly integrate OpenAI-powered functionalities into applications using the Google Gemini Pro protocol. To ensure comprehensive compatibility, we have conducted testing specifically targeting `chatbox` and `openai translator` functionalities.
+- <https://github.com/zhu327/gemini-openai-proxy/issues/4>
 
 ---
 

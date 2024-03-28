@@ -41,15 +41,15 @@ func NewGeminiAdapter(client *genai.Client, model string) *GeminiAdapter {
 func (g *GeminiAdapter) GenerateContent(
 	ctx context.Context,
 	req *ChatCompletionRequest,
-	content []*genai.Content,
+	messages []*genai.Content,
 ) (*openai.ChatCompletionResponse, error) {
 	model := g.client.GenerativeModel(g.model)
 	setGenaiModelByOpenaiRequest(model, req)
 
 	cs := model.StartChat()
-	setGenaiChatHistory(cs, content)
+	setGenaiChatHistory(cs, messages)
 
-	genaiResp, err := cs.SendMessage(ctx, content[len(content)-1].Parts...)
+	genaiResp, err := cs.SendMessage(ctx, messages[len(messages)-1].Parts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "genai send message error")
 	}
@@ -61,15 +61,15 @@ func (g *GeminiAdapter) GenerateContent(
 func (g *GeminiAdapter) GenerateStreamContent(
 	ctx context.Context,
 	req *ChatCompletionRequest,
-	content []*genai.Content,
+	messages []*genai.Content,
 ) (<-chan string, error) {
 	model := g.client.GenerativeModel(g.model)
 	setGenaiModelByOpenaiRequest(model, req)
 
 	cs := model.StartChat()
-	setGenaiChatHistory(cs, content)
+	setGenaiChatHistory(cs, messages)
 
-	iter := cs.SendMessageStream(ctx, content[len(content)-1].Parts...)
+	iter := cs.SendMessageStream(ctx, messages[len(messages)-1].Parts...)
 
 	dataChan := make(chan string)
 	go handleStreamIter(g.model, iter, dataChan)
@@ -192,10 +192,10 @@ func convertFinishReason(reason genai.FinishReason) openai.FinishReason {
 	return openaiFinishReason
 }
 
-func setGenaiChatHistory(cs *genai.ChatSession, content []*genai.Content) {
-	cs.History = make([]*genai.Content, 0, len(content))
-	if len(content) > 1 {
-		cs.History = content[:len(content)-1]
+func setGenaiChatHistory(cs *genai.ChatSession, messages []*genai.Content) {
+	cs.History = make([]*genai.Content, 0, len(messages))
+	if len(messages) > 1 {
+		cs.History = messages[:len(messages)-1]
 	}
 
 	if len(cs.History) != 0 && cs.History[len(cs.History)-1].Role != genaiRoleModel {

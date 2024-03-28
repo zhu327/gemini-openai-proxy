@@ -87,7 +87,7 @@ func ChatProxyHandler(c *gin.Context) {
 		return
 	}
 
-	content, err := req.ToGenaiContent()
+	messages, err := req.ToGenaiMessages()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, openai.APIError{
 			Code:    http.StatusBadRequest,
@@ -112,7 +112,7 @@ func ChatProxyHandler(c *gin.Context) {
 	gemini := adapter.NewGeminiAdapter(client, model)
 
 	if !req.Stream {
-		resp, err := gemini.GenerateContent(ctx, req, content)
+		resp, err := gemini.GenerateContent(ctx, req, messages)
 		if err != nil {
 			log.Printf("genai generate content error %v\n", err)
 			c.JSON(http.StatusBadRequest, openai.APIError{
@@ -126,7 +126,7 @@ func ChatProxyHandler(c *gin.Context) {
 		return
 	}
 
-	dataChan, err := gemini.GenerateStreamContent(ctx, req, content)
+	dataChan, err := gemini.GenerateStreamContent(ctx, req, messages)
 	if err != nil {
 		log.Printf("genai generate content error %v\n", err)
 		c.JSON(http.StatusBadRequest, openai.APIError{

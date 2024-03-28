@@ -60,7 +60,7 @@ func (req *ChatCompletionRequest) ToGenaiModel() string {
 	}
 }
 
-func (req *ChatCompletionRequest) ToGenaiContent() ([]*genai.Content, error) {
+func (req *ChatCompletionRequest) ToGenaiMessages() ([]*genai.Content, error) {
 	if req.Model == openai.GPT4VisionPreview {
 		return req.toVisionGenaiContent()
 	}
