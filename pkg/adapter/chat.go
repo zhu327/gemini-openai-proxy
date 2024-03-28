@@ -195,7 +195,7 @@ func convertFinishReason(reason genai.FinishReason) openai.FinishReason {
 func setGenaiChatHistory(cs *genai.ChatSession, messages []*genai.Content) {
 	cs.History = make([]*genai.Content, 0, len(messages))
 	if len(messages) > 1 {
-		cs.History = messages[:len(messages)-1]
+		cs.History = append(cs.History, messages[:len(messages)-1]...)
 	}
 
 	if len(cs.History) != 0 && cs.History[len(cs.History)-1].Role != genaiRoleModel {
