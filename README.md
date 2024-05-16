@@ -99,7 +99,7 @@ Gemini-OpenAI-Proxy offers a straightforward way to integrate OpenAI functionali
 
    Model Mapping:
 
-   | GPT 模型 | Gemini 模型 |
+   | GPT Model | Gemini Model |
    |---|---|
    | gpt-3.5-turbo | gemini-1.0-pro-latest |
    | gpt-4 | gemini-1.5-flash-latest |
