@@ -54,7 +54,7 @@ func (req *ChatCompletionRequest) ToGenaiModel() string {
 	case req.Model == openai.GPT4TurboPreview || req.Model == openai.GPT4Turbo1106 || req.Model == openai.GPT4Turbo0125:
 		return Gemini1Dot5Pro
 	case strings.HasPrefix(req.Model, openai.GPT4):
-		return Gemini1Ultra
+		return Gemini1Dot5Flash
 	default:
 		return Gemini1Pro
 	}
