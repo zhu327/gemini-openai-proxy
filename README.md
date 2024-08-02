@@ -2,6 +2,8 @@
 
 Gemini-OpenAI-Proxy is a proxy designed to convert the OpenAI API protocol to the Google Gemini protocol. This enables applications built for the OpenAI API to seamlessly communicate with the Gemini protocol, including support for Chat Completion, Embeddings, and Model(s) endpoints.
 
+This is a fork of zhu327/gemini-openai-proxy that eliminates the mapping of openAI models to gemini models and directly exposes the underlying gemini models to the api endpoints directly. I've also added support for Google's embeddings model. This was motivated by my own issues with using Google's [openAI API Compatible Endpoint](https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/call-gemini-using-openai-library).
+
 ---
 
 ## Table of Contents
@@ -30,11 +32,24 @@ go build -o gemini main.go
 
 We recommend deploying Gemini-OpenAI-Proxy using Docker for a straightforward setup. Follow these steps to deploy with Docker:
 
-```bash
-docker run --restart=always -it -d -p 8080:8080 --name gemini zhu327/gemini-openai-proxy:latest
-```
+   You can either do this on the command line:
+   ```bash
+   docker run --restart=unless-stopped -it -d -p 8080:8080 --name gemini ghcr.io/ekatiyar/gemini-openai-proxy:latest
+   ```
 
-Adjust the port mapping (e.g., `-p 8080:8080`) as needed, and ensure that the Docker image version (`zhu327/gemini-openai-proxy:latest`) aligns with your requirements.
+   Or with the following docker-compose config:
+   ```yaml
+   version: '3'
+   services:
+      gemini:
+         container_name: gemini
+         ports:
+            - "8080:8080"
+         image: ghcr.io/ekatiyar/gemini-openai-proxy:latest
+         restart: unless-stopped
+   ```
+
+Adjust the port mapping (e.g., `-p 5001:8080`) as needed, and ensure that the Docker image version aligns with your requirements. If you only want the added embedding model support and still want open ai model mapping, use `ghcr.io/ekatiyar/gemini-openai-proxy:embedding` instead
 
 ---
 
