@@ -3,7 +3,6 @@ package adapter
 import (
 	"encoding/json"
 	"os"
-	"strings"
 
 	"github.com/google/generative-ai-go/genai"
 	"github.com/pkg/errors"
@@ -45,25 +44,21 @@ type ChatCompletionRequest struct {
 
 func (req *ChatCompletionRequest) ToGenaiModel() string {
 	switch {
-	case req.Model == openai.GPT4VisionPreview:
-		if os.Getenv("GPT_4_VISION_PREVIEW") == Gemini1Dot5Pro {
+	case req.Model == Gemini1Dot5ProV:
+		if os.Getenv("GEMINI_VISION_PREVIEW") == Gemini1Dot5Pro {
 			return Gemini1Dot5Pro
 		}
 
 		return Gemini1Dot5Flash
-	case req.Model == openai.GPT4TurboPreview || req.Model == openai.GPT4Turbo1106 || req.Model == openai.GPT4Turbo0125:
-		return Gemini1Dot5Pro
-	case strings.HasPrefix(req.Model, openai.GPT4):
-		return Gemini1Dot5Flash
 	default:
-		return Gemini1Pro
+		return req.Model
 	}
 }
 
 func (req *ChatCompletionRequest) ToGenaiMessages() ([]*genai.Content, error) {
-	if req.Model == openai.GPT4VisionPreview {
+	if req.Model == Gemini1Dot5ProV {
 		return req.toVisionGenaiContent()
-	} else if req.Model == openai.GPT3Ada002 {
+	} else if req.Model == TextEmbedding004 {
 		return nil, errors.New("Chat Completion is not supported for embedding model")
 	}
 
@@ -209,7 +204,7 @@ type EmbeddingRequest struct {
 }
 
 func (req *EmbeddingRequest) ToGenaiMessages() ([]*genai.Content, error) {
-	if req.Model != openai.GPT3Ada002 {
+	if req.Model != TextEmbedding004 {
 		return nil, errors.New("Embedding is not supported for chat model " + req.Model)
 	}
 

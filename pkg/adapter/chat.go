@@ -20,6 +20,7 @@ const (
 	Gemini1Pro       = "gemini-1.0-pro-latest"
 	Gemini1Dot5Pro   = "gemini-1.5-pro-latest"
 	Gemini1Dot5Flash = "gemini-1.5-flash-latest"
+	Gemini1Dot5ProV  = "gemini-1.5-vision-latest" // Converted to one of the above models in struct::ToGenaiModel
 	TextEmbedding004 = "text-embedding-004"
 
 	genaiRoleUser  = "user"

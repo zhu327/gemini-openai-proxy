@@ -26,31 +26,31 @@ func ModelListHandler(c *gin.Context) {
 		"data": []any{
 			openai.Model{
 				CreatedAt: 1686935002,
-				ID:        openai.GPT3Dot5Turbo,
+				ID:        adapter.Gemini1Pro,
 				Object:    "model",
-				OwnedBy:   "openai",
+				OwnedBy:   "google",
 			},
 			openai.Model{
 				CreatedAt: 1686935002,
-				ID:        openai.GPT4,
+				ID:        adapter.Gemini1Dot5Flash,
 				Object:    "model",
-				OwnedBy:   "openai",
+				OwnedBy:   "google",
 			},
 			openai.Model{
 				CreatedAt: 1686935002,
-				ID:        openai.GPT4TurboPreview,
+				ID:        adapter.Gemini1Dot5Pro,
 				Object:    "model",
-				OwnedBy:   "openai",
+				OwnedBy:   "google",
 			},
 			openai.Model{
 				CreatedAt: 1686935002,
-				ID:        openai.GPT4VisionPreview,
+				ID:        adapter.Gemini1Dot5ProV,
 				Object:    "model",
-				OwnedBy:   "openai",
+				OwnedBy:   "google",
 			},
 			openai.Model{
 				CreatedAt: 1686935002,
-				ID:        openai.GPT3Ada002,
+				ID:        adapter.TextEmbedding004,
 				Object:    "model",
 				OwnedBy:   "openai",
 			},
@@ -64,7 +64,7 @@ func ModelRetrieveHandler(c *gin.Context) {
 		CreatedAt: 1686935002,
 		ID:        model,
 		Object:    "model",
-		OwnedBy:   "openai",
+		OwnedBy:   "google",
 	})
 }
 
