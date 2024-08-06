@@ -48,6 +48,12 @@ func ModelListHandler(c *gin.Context) {
 				Object:    "model",
 				OwnedBy:   "openai",
 			},
+			openai.Model{
+				CreatedAt: 1686935002,
+				ID:        openai.GPT3Ada002,
+				Object:    "model",
+				OwnedBy:   "openai",
+			},
 		},
 	})
 }
@@ -153,4 +159,66 @@ func setEventStreamHeaders(c *gin.Context) {
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Header().Set("Transfer-Encoding", "chunked")
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
+}
+
+func EmbeddingProxyHandler(c *gin.Context) {
+	// Retrieve the Authorization header value
+	authorizationHeader := c.GetHeader("Authorization")
+	// Declare a variable to store the OPENAI_API_KEY
+	var openaiAPIKey string
+	// Use fmt.Sscanf to extract the Bearer token
+	_, err := fmt.Sscanf(authorizationHeader, "Bearer %s", &openaiAPIKey)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, openai.APIError{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	req := &adapter.EmbeddingRequest{}
+	// Bind the JSON data from the request to the struct
+	if err := c.ShouldBindJSON(req); err != nil {
+		c.JSON(http.StatusBadRequest, openai.APIError{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	messages, err := req.ToGenaiMessages()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, openai.APIError{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	ctx := c.Request.Context()
+	client, err := genai.NewClient(ctx, option.WithAPIKey(openaiAPIKey))
+	if err != nil {
+		log.Printf("new genai client error %v\n", err)
+		c.JSON(http.StatusBadRequest, openai.APIError{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+		})
+		return
+	}
+	defer client.Close()
+
+	model := req.ToGenaiModel()
+	gemini := adapter.NewGeminiAdapter(client, model)
+
+	resp, err := gemini.GenerateEmbedding(ctx, messages)
+	if err != nil {
+		log.Printf("genai generate content error %v\n", err)
+		c.JSON(http.StatusBadRequest, openai.APIError{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
