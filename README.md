@@ -1,6 +1,6 @@
 # Gemini-OpenAI-Proxy
 
-Gemini-OpenAI-Proxy is a proxy designed to convert the OpenAI API protocol to the Google Gemini Pro protocol. This enables seamless integration of OpenAI-powered functionalities into applications using the Gemini Pro protocol.
+Gemini-OpenAI-Proxy is a proxy designed to convert the OpenAI API protocol to the Google Gemini protocol. This enables applications built for the OpenAI API to seamlessly communicate with the Gemini protocol, including support for Chat Completion, Embeddings, and Model(s) endpoints.
 
 ---
 
@@ -51,7 +51,7 @@ Gemini-OpenAI-Proxy offers a straightforward way to integrate OpenAI functionali
 3. **Integrate the Proxy into Your Application:**
    Modify your application's API requests to target the Gemini-OpenAI-Proxy, providing the acquired Google AI Studio API key as if it were your OpenAI API key.
 
-   Example API Request (Assuming the proxy is hosted at `http://localhost:8080`):
+   Example Chat Completion API Request (Assuming the proxy is hosted at `http://localhost:8080`):
    ```bash
    curl http://localhost:8080/v1/chat/completions \
     -H "Content-Type: application/json" \
@@ -97,6 +97,30 @@ Gemini-OpenAI-Proxy offers a straightforward way to integrate OpenAI functionali
     }'
    ```
 
+   Example Embeddings API Request:
+
+   ```bash
+   curl http://localhost:8080/v1/embeddings \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $YOUR_GOOGLE_AI_STUDIO_API_KEY" \
+    -d '{
+       "model": "ada-002",
+       "input": "This is a test sentence."
+    }'
+   ```
+
+   You can also pass in multiple input strings as a list:
+
+   ```bash
+   curl http://localhost:8080/v1/embeddings \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $YOUR_GOOGLE_AI_STUDIO_API_KEY" \
+    -d '{
+       "model": "ada-002",
+       "input": ["This is a test sentence.", "This is another test sentence"]
+    }'
+   ```
+
    Model Mapping:
 
    | GPT Model | Gemini Model |
@@ -105,6 +129,7 @@ Gemini-OpenAI-Proxy offers a straightforward way to integrate OpenAI functionali
    | gpt-4 | gemini-1.5-flash-latest |
    | gpt-4-turbo-preview | gemini-1.5-pro-latest |
    | gpt-4-vision-preview | gemini-1.0-pro-vision-latest |
+   | ada-002 | text-embedding-004 |
 
    If you wish to map `gpt-4-vision-preview` to `gemini-1.5-pro-latest`, you can configure the environment variable `GPT_4_VISION_PREVIEW = gemini-1.5-pro-latest`. This is because `gemini-1.5-pro-latest` now also supports multi-modal data.
 

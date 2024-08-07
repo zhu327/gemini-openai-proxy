@@ -63,6 +63,8 @@ func (req *ChatCompletionRequest) ToGenaiModel() string {
 func (req *ChatCompletionRequest) ToGenaiMessages() ([]*genai.Content, error) {
 	if req.Model == openai.GPT4VisionPreview {
 		return req.toVisionGenaiContent()
+	} else if req.Model == openai.GPT3Ada002 {
+		return nil, errors.New("Chat Completion is not supported for embedding model")
 	}
 
 	return req.toStringGenaiContent()
@@ -175,4 +177,55 @@ type CompletionResponse struct {
 	Created int64              `json:"created"`
 	Model   string             `json:"model"`
 	Choices []CompletionChoice `json:"choices"`
+}
+
+type StringArray []string
+
+// UnmarshalJSON implements the json.Unmarshaler interface for StringArray.
+func (s *StringArray) UnmarshalJSON(data []byte) error {
+	// Check if the data is a JSON array
+	if data[0] == '[' {
+		var arr []string
+		if err := json.Unmarshal(data, &arr); err != nil {
+			return err
+		}
+		*s = arr
+		return nil
+	}
+
+	// Check if the data is a JSON string
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	*s = StringArray{str} // Wrap the string in a slice
+	return nil
+}
+
+// EmbeddingRequest represents a request structure for embeddings API.
+type EmbeddingRequest struct {
+	Model    string      `json:"model" binding:"required"`
+	Messages StringArray `json:"input" binding:"required,min=1"`
+}
+
+func (req *EmbeddingRequest) ToGenaiMessages() ([]*genai.Content, error) {
+	if req.Model != openai.GPT3Ada002 {
+		return nil, errors.New("Embedding is not supported for chat model " + req.Model)
+	}
+
+	content := make([]*genai.Content, 0, len(req.Messages))
+	for _, message := range req.Messages {
+		embedString := []genai.Part{
+			genai.Text(message),
+		}
+		content = append(content, &genai.Content{
+			Parts: embedString,
+		})
+	}
+
+	return content, nil
+}
+
+func (req *EmbeddingRequest) ToGenaiModel() string {
+	return TextEmbedding004
 }

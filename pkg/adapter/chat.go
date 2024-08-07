@@ -20,6 +20,7 @@ const (
 	Gemini1Pro       = "gemini-1.0-pro-latest"
 	Gemini1Dot5Pro   = "gemini-1.5-pro-latest"
 	Gemini1Dot5Flash = "gemini-1.5-flash-latest"
+	TextEmbedding004 = "text-embedding-004"
 
 	genaiRoleUser  = "user"
 	genaiRoleModel = "model"
@@ -238,4 +239,38 @@ func setGenaiModelByOpenaiRequest(model *genai.GenerativeModel, req *ChatComplet
 			Threshold: genai.HarmBlockNone,
 		},
 	}
+}
+
+func (g *GeminiAdapter) GenerateEmbedding(
+	ctx context.Context,
+	messages []*genai.Content,
+) (*openai.EmbeddingResponse, error) {
+	model := g.client.EmbeddingModel(g.model)
+
+	batchEmbeddings := model.NewBatch()
+	for _, message := range messages {
+		batchEmbeddings = batchEmbeddings.AddContent(message.Parts...)
+	}
+
+	genaiResp, err := model.BatchEmbedContents(ctx, batchEmbeddings)
+	if err != nil {
+		return nil, errors.Wrap(err, "genai generate embeddings error")
+	}
+
+	openaiResp := openai.EmbeddingResponse{
+		Object: "list",
+		Data:   make([]openai.Embedding, 0, len(genaiResp.Embeddings)),
+		Model:  openai.EmbeddingModel(g.model),
+	}
+
+	for i, genaiEmbedding := range genaiResp.Embeddings {
+		embedding := openai.Embedding{
+			Object:    "embedding",
+			Embedding: genaiEmbedding.Values,
+			Index:     i,
+		}
+		openaiResp.Data = append(openaiResp.Data, embedding)
+	}
+
+	return &openaiResp, nil
 }

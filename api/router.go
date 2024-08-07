@@ -24,4 +24,7 @@ func Register(router *gin.Engine) {
 
 	// openai chat
 	router.POST("/v1/chat/completions", ChatProxyHandler)
+
+	// openai embeddings
+	router.POST("/v1/embeddings", EmbeddingProxyHandler)
 }
