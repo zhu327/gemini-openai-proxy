@@ -21,38 +21,39 @@ func IndexHandler(c *gin.Context) {
 }
 
 func ModelListHandler(c *gin.Context) {
+	owner := adapter.GetOwner()
 	c.JSON(http.StatusOK, gin.H{
 		"object": "list",
 		"data": []any{
 			openai.Model{
 				CreatedAt: 1686935002,
-				ID:        openai.GPT3Dot5Turbo,
+				ID:        adapter.GetModel(openai.GPT3Dot5Turbo),
 				Object:    "model",
-				OwnedBy:   "openai",
+				OwnedBy:   owner,
 			},
 			openai.Model{
 				CreatedAt: 1686935002,
-				ID:        openai.GPT4,
+				ID:        adapter.GetModel(openai.GPT4),
 				Object:    "model",
-				OwnedBy:   "openai",
+				OwnedBy:   owner,
 			},
 			openai.Model{
 				CreatedAt: 1686935002,
-				ID:        openai.GPT4TurboPreview,
+				ID:        adapter.GetModel(openai.GPT4TurboPreview),
 				Object:    "model",
-				OwnedBy:   "openai",
+				OwnedBy:   owner,
 			},
 			openai.Model{
 				CreatedAt: 1686935002,
-				ID:        openai.GPT4VisionPreview,
+				ID:        adapter.GetModel(openai.GPT4VisionPreview),
 				Object:    "model",
-				OwnedBy:   "openai",
+				OwnedBy:   owner,
 			},
 			openai.Model{
 				CreatedAt: 1686935002,
-				ID:        openai.GPT3Ada002,
+				ID:        adapter.GetModel(string(openai.AdaEmbeddingV2)),
 				Object:    "model",
-				OwnedBy:   "openai",
+				OwnedBy:   owner,
 			},
 		},
 	})
@@ -60,11 +61,12 @@ func ModelListHandler(c *gin.Context) {
 
 func ModelRetrieveHandler(c *gin.Context) {
 	model := c.Param("model")
+	owner := adapter.GetOwner()
 	c.JSON(http.StatusOK, openai.Model{
 		CreatedAt: 1686935002,
 		ID:        model,
 		Object:    "model",
-		OwnedBy:   "openai",
+		OwnedBy:   owner,
 	})
 }
 
