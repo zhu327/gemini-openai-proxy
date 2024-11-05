@@ -52,7 +52,7 @@ func (g *GeminiAdapter) GenerateContent(
 			if apiErr.Code == http.StatusTooManyRequests {
 				return nil, errors.Wrap(&openai.APIError{
 					Code:    http.StatusTooManyRequests,
-					Message: "genai send message error: " + err.Error(),
+					Message: err.Error(),
 				}, "genai send message error")
 			}
 		} else {

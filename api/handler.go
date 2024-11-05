@@ -147,49 +147,51 @@ func ChatProxyHandler(c *gin.Context) {
 }
 
 func handleGenerateContentError(c *gin.Context, err error) {
-    // Try OpenAI API error first
-    var openaiErr *openai.APIError
-    if errors.As(err, &openaiErr) {
+	log.Printf("genai generate content error %v\n", err)
 
-        // Convert the code to an HTTP status code
-        statusCode := http.StatusInternalServerError
-        if code, ok := openaiErr.Code.(int); ok {
-            statusCode = code
-        }
-        
-        c.AbortWithStatusJSON(statusCode, openaiErr)
-        return
-    }
+	// Try OpenAI API error first
+	var openaiErr *openai.APIError
+	if errors.As(err, &openaiErr) {
 
-    // Try Google API error
-    var googleErr *googleapi.Error
-    if errors.As(err, &googleErr) {
-        log.Printf("Handling Google API error with code: %d\n", googleErr.Code)
-        statusCode := googleErr.Code
-        if statusCode == http.StatusTooManyRequests {
-            c.AbortWithStatusJSON(http.StatusTooManyRequests, openai.APIError{
-                Code:    http.StatusTooManyRequests,
-                Message: "Rate limit exceeded",
-                Type:    "rate_limit_error",
-            })
-            return
-        }
+		// Convert the code to an HTTP status code
+		statusCode := http.StatusInternalServerError
+		if code, ok := openaiErr.Code.(int); ok {
+			statusCode = code
+		}
 
-        c.AbortWithStatusJSON(statusCode, openai.APIError{
-            Code:    statusCode,
-            Message: googleErr.Message,
-            Type:    "server_error",
-        })
-        return
-    }
+		c.AbortWithStatusJSON(statusCode, openaiErr)
+		return
+	}
 
-    // For all other errors
-    log.Printf("Handling unknown error: %v\n", err)
-    c.AbortWithStatusJSON(http.StatusInternalServerError, openai.APIError{
-        Code:    http.StatusInternalServerError,
-        Message: err.Error(),
-        Type:    "server_error",
-    })
+	// Try Google API error
+	var googleErr *googleapi.Error
+	if errors.As(err, &googleErr) {
+		log.Printf("Handling Google API error with code: %d\n", googleErr.Code)
+		statusCode := googleErr.Code
+		if statusCode == http.StatusTooManyRequests {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, openai.APIError{
+				Code:    http.StatusTooManyRequests,
+				Message: "Rate limit exceeded",
+				Type:    "rate_limit_error",
+			})
+			return
+		}
+
+		c.AbortWithStatusJSON(statusCode, openai.APIError{
+			Code:    statusCode,
+			Message: googleErr.Message,
+			Type:    "server_error",
+		})
+		return
+	}
+
+	// For all other errors
+	log.Printf("Handling unknown error: %v\n", err)
+	c.AbortWithStatusJSON(http.StatusInternalServerError, openai.APIError{
+		Code:    http.StatusInternalServerError,
+		Message: err.Error(),
+		Type:    "server_error",
+	})
 }
 
 func setEventStreamHeaders(c *gin.Context) {
