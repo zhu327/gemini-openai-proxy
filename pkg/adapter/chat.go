@@ -34,13 +34,6 @@ func NewGeminiAdapter(client *genai.Client, model string) *GeminiAdapter {
 	}
 }
 
-func isRateLimitError(err error) bool {
-	if apiErr, ok := err.(*googleapi.Error); ok {
-	return apiErr.Code == http.StatusTooManyRequests
-	}
-	return false
-}
-
 func (g *GeminiAdapter) GenerateContent(
 	ctx context.Context,
 	req *ChatCompletionRequest,
@@ -54,11 +47,12 @@ func (g *GeminiAdapter) GenerateContent(
 
 	genaiResp, err := cs.SendMessage(ctx, messages[len(messages)-1].Parts...)
 	if err != nil {
-		if isRateLimitError(err) {
-			return nil, &openai.APIError{
-				Code:    http.StatusTooManyRequests,
-				Message: errors.Wrap(err, "genai send message error").Error(),
-			}
+		var apiErr *googleapi.Error
+		if errors.As(err, &apiErr) && apiErr.Code == http.StatusTooManyRequests {
+			return nil, errors.Wrap(&openai.APIError{
+				Code:	http.StatusTooManyRequests,
+				Message: "genai send message error: " + err.Error(),
+			}, "genai send message error")
 		}
 		return nil, errors.Wrap(err, "genai send message error")
 	}
