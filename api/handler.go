@@ -150,7 +150,6 @@ func handleGenerateContentError(c *gin.Context, err error) {
     // Try OpenAI API error first
     var openaiErr *openai.APIError
     if errors.As(err, &openaiErr) {
-        log.Printf("Handling OpenAI API error with code: %v\n", openaiErr.Code)
 
         // Convert the code to an HTTP status code
         statusCode := http.StatusInternalServerError

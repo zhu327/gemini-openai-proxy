@@ -49,7 +49,6 @@ func (g *GeminiAdapter) GenerateContent(
 	if err != nil {
 		var apiErr *googleapi.Error
 		if errors.As(err, &apiErr) {
-			log.Printf("Error is of type *googleapi.Error with code: %d\n", apiErr.Code)
 			if apiErr.Code == http.StatusTooManyRequests {
 				return nil, errors.Wrap(&openai.APIError{
 					Code:    http.StatusTooManyRequests,
