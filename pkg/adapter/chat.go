@@ -48,11 +48,16 @@ func (g *GeminiAdapter) GenerateContent(
 	genaiResp, err := cs.SendMessage(ctx, messages[len(messages)-1].Parts...)
 	if err != nil {
 		var apiErr *googleapi.Error
-		if errors.As(err, &apiErr) && apiErr.Code == http.StatusTooManyRequests {
-			return nil, errors.Wrap(&openai.APIError{
-				Code:	http.StatusTooManyRequests,
-				Message: "genai send message error: " + err.Error(),
-			}, "genai send message error")
+		if errors.As(err, &apiErr) {
+			log.Printf("Error is of type *googleapi.Error with code: %d\n", apiErr.Code)
+			if apiErr.Code == http.StatusTooManyRequests {
+				return nil, errors.Wrap(&openai.APIError{
+					Code:    http.StatusTooManyRequests,
+					Message: "genai send message error: " + err.Error(),
+				}, "genai send message error")
+			}
+		} else {
+			log.Printf("Error is not of type *googleapi.Error: %v\n", err)
 		}
 		return nil, errors.Wrap(err, "genai send message error")
 	}
