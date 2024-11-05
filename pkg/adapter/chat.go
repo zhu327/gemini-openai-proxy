@@ -11,6 +11,7 @@ import (
 	"github.com/google/generative-ai-go/genai"
 	"github.com/pkg/errors"
 	openai "github.com/sashabaranov/go-openai"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 
 	"github.com/zhu327/gemini-openai-proxy/pkg/util"
