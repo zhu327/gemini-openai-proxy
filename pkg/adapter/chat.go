@@ -61,7 +61,7 @@ func (g *GeminiAdapter) GenerateContent(
 			}
 		}
 		return nil, errors.Wrap(err, "genai send message error")
-	}	
+	}
 	openaiResp := genaiResponseToOpenaiResponse(g.model, genaiResp)
 	return &openaiResp, nil
 }
