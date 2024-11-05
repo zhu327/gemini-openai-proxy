@@ -10,6 +10,8 @@ import (
 	"github.com/google/generative-ai-go/genai"
 	openai "github.com/sashabaranov/go-openai"
 	"google.golang.org/api/option"
+	"google.golang.org/api/googleapi"
+	"github.com/pkg/errors"
 
 	"github.com/zhu327/gemini-openai-proxy/pkg/adapter"
 )
@@ -78,10 +80,7 @@ func ChatProxyHandler(c *gin.Context) {
 	// Use fmt.Sscanf to extract the Bearer token
 	_, err := fmt.Sscanf(authorizationHeader, "Bearer %s", &openaiAPIKey)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, openai.APIError{
-			Code:    http.StatusBadRequest,
-			Message: err.Error(),
-		})
+		handleGenerateContentError(c, err)
 		return
 	}
 
@@ -122,11 +121,7 @@ func ChatProxyHandler(c *gin.Context) {
 	if !req.Stream {
 		resp, err := gemini.GenerateContent(ctx, req, messages)
 		if err != nil {
-			log.Printf("genai generate content error %v\n", err)
-			c.JSON(http.StatusBadRequest, openai.APIError{
-				Code:    http.StatusBadRequest,
-				Message: err.Error(),
-			})
+			handleGenerateContentError(c, err)
 			return
 		}
 
@@ -136,11 +131,7 @@ func ChatProxyHandler(c *gin.Context) {
 
 	dataChan, err := gemini.GenerateStreamContent(ctx, req, messages)
 	if err != nil {
-		log.Printf("genai generate content error %v\n", err)
-		c.JSON(http.StatusBadRequest, openai.APIError{
-			Code:    http.StatusBadRequest,
-			Message: err.Error(),
-		})
+		handleGenerateContentError(c, err)
 		return
 	}
 
@@ -152,6 +143,54 @@ func ChatProxyHandler(c *gin.Context) {
 		}
 		c.Render(-1, adapter.Event{Data: "data: [DONE]"})
 		return false
+	})
+}
+
+func handleGenerateContentError(c *gin.Context, err error) {
+	log.Printf("genai generate content error %v\n", err)
+
+	// Try OpenAI API error first
+	var openaiErr *openai.APIError
+	if errors.As(err, &openaiErr) {
+
+		// Convert the code to an HTTP status code
+		statusCode := http.StatusInternalServerError
+		if code, ok := openaiErr.Code.(int); ok {
+			statusCode = code
+		}
+
+		c.AbortWithStatusJSON(statusCode, openaiErr)
+		return
+	}
+
+	// Try Google API error
+	var googleErr *googleapi.Error
+	if errors.As(err, &googleErr) {
+		log.Printf("Handling Google API error with code: %d\n", googleErr.Code)
+		statusCode := googleErr.Code
+		if statusCode == http.StatusTooManyRequests {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, openai.APIError{
+				Code:    http.StatusTooManyRequests,
+				Message: "Rate limit exceeded",
+				Type:    "rate_limit_error",
+			})
+			return
+		}
+
+		c.AbortWithStatusJSON(statusCode, openai.APIError{
+			Code:    statusCode,
+			Message: googleErr.Message,
+			Type:    "server_error",
+		})
+		return
+	}
+
+	// For all other errors
+	log.Printf("Handling unknown error: %v\n", err)
+	c.AbortWithStatusJSON(http.StatusInternalServerError, openai.APIError{
+		Code:    http.StatusInternalServerError,
+		Message: err.Error(),
+		Type:    "server_error",
 	})
 }
 
@@ -171,10 +210,7 @@ func EmbeddingProxyHandler(c *gin.Context) {
 	// Use fmt.Sscanf to extract the Bearer token
 	_, err := fmt.Sscanf(authorizationHeader, "Bearer %s", &openaiAPIKey)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, openai.APIError{
-			Code:    http.StatusBadRequest,
-			Message: err.Error(),
-		})
+		handleGenerateContentError(c, err)
 		return
 	}
 
@@ -214,11 +250,7 @@ func EmbeddingProxyHandler(c *gin.Context) {
 
 	resp, err := gemini.GenerateEmbedding(ctx, messages)
 	if err != nil {
-		log.Printf("genai generate content error %v\n", err)
-		c.JSON(http.StatusBadRequest, openai.APIError{
-			Code:    http.StatusBadRequest,
-			Message: err.Error(),
-		})
+		handleGenerateContentError(c, err)
 		return
 	}
 

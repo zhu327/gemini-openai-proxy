@@ -11,6 +11,7 @@ import (
 	"github.com/google/generative-ai-go/genai"
 	"github.com/pkg/errors"
 	openai "github.com/sashabaranov/go-openai"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 
 	"github.com/zhu327/gemini-openai-proxy/pkg/util"
@@ -46,9 +47,19 @@ func (g *GeminiAdapter) GenerateContent(
 
 	genaiResp, err := cs.SendMessage(ctx, messages[len(messages)-1].Parts...)
 	if err != nil {
+		var apiErr *googleapi.Error
+		if errors.As(err, &apiErr) {
+			if apiErr.Code == http.StatusTooManyRequests {
+				return nil, errors.Wrap(&openai.APIError{
+					Code:    http.StatusTooManyRequests,
+					Message: err.Error(),
+				}, "genai send message error")
+			}
+		} else {
+			log.Printf("Error is not of type *googleapi.Error: %v\n", err)
+		}
 		return nil, errors.Wrap(err, "genai send message error")
 	}
-
 	openaiResp := genaiResponseToOpenaiResponse(g.model, genaiResp)
 	return &openaiResp, nil
 }
