@@ -75,7 +75,7 @@ func (req *ChatCompletionRequest) toVisionGenaiContent() ([]*genai.Content, erro
 				},
 				{
 					Parts: []genai.Part{
-						genai.Text(""),
+						genai.Text(" "),
 					},
 					Role: genaiRoleModel,
 				},
