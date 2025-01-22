@@ -8,10 +8,10 @@ import (
 )
 
 const (
-	Gemini1Pro       = "gemini-1.0-pro-latest"
 	Gemini1Dot5Pro   = "gemini-1.5-pro-latest"
-	Gemini1Dot5Flash = "gemini-1.5-flash-latest"
+	Gemini1Dot5Flash = "gemini-1.5-flash-002"
 	Gemini1Dot5ProV  = "gemini-1.0-pro-vision-latest" // Converted to one of the above models in struct::ToGenaiModel
+	Gemini2FlashExp  = "gemini-2.0-flash-exp"
 	TextEmbedding004 = "text-embedding-004"
 )
 
@@ -38,12 +38,12 @@ func GetMappedModel(geminiModelName string) string {
 		return geminiModelName
 	}
 	switch {
-	case geminiModelName == Gemini1Dot5ProV:
-		return openai.GPT4VisionPreview
 	case geminiModelName == Gemini1Dot5Pro:
 		return openai.GPT4TurboPreview
 	case geminiModelName == Gemini1Dot5Flash:
 		return openai.GPT4
+	case geminiModelName == Gemini2FlashExp:
+		return openai.GPT4o
 	case geminiModelName == TextEmbedding004:
 		return string(openai.AdaEmbeddingV2)
 	default:
@@ -61,8 +61,10 @@ func ConvertModel(openAiModelName string) string {
 		return Gemini1Dot5Flash
 	case openAiModelName == string(openai.AdaEmbeddingV2):
 		return TextEmbedding004
+	case openAiModelName == openai.GPT4o:
+		return Gemini2FlashExp
 	default:
-		return Gemini1Pro
+		return Gemini1Dot5Flash
 	}
 }
 

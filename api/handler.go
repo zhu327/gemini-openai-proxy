@@ -8,10 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/generative-ai-go/genai"
-	openai "github.com/sashabaranov/go-openai"
-	"google.golang.org/api/option"
-	"google.golang.org/api/googleapi"
 	"github.com/pkg/errors"
+	openai "github.com/sashabaranov/go-openai"
+	"google.golang.org/api/googleapi"
+	"google.golang.org/api/option"
 
 	"github.com/zhu327/gemini-openai-proxy/pkg/adapter"
 )
