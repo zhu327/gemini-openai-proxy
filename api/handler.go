@@ -57,6 +57,12 @@ func ModelListHandler(c *gin.Context) {
 				Object:    "model",
 				OwnedBy:   owner,
 			},
+			openai.Model{
+				CreatedAt: 1686935002,
+				ID:        adapter.GetModel(openai.GPT4o),
+				Object:    "model",
+				OwnedBy:   owner,
+			},
 		},
 	})
 }
