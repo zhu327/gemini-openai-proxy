@@ -107,11 +107,49 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 			break
 		}
 
-		openaiResp := genaiResponseToStreamCompletionResponse(model, genaiResp, respID, created)
-		resp, _ := json.Marshal(openaiResp)
-		dataChan <- string(resp)
+		// Process each candidate's text content character by character
+		for _, candidate := range genaiResp.Candidates {
+			for _, part := range candidate.Content.Parts {
+				switch pp := part.(type) {
+				case genai.Text:
+					// Stream each character individually
+					text := string(pp)
+					for _, char := range text {
+						openaiResp := &CompletionResponse{
+							ID:      fmt.Sprintf("chatcmpl-%s", respID),
+							Object:  "chat.completion.chunk",
+							Created: created,
+							Model:   GetMappedModel(model),
+							Choices: []CompletionChoice{
+								{
+									Index: 0,
+									Delta: struct {
+										Content string          `json:"content,omitempty"`
+										Role    string          `json:"role,omitempty"`
+										ToolCalls []openai.ToolCall `json:"tool_calls,omitempty"`
+									}{
+										Content: string(char),
+									},
+								},
+							},
+						}
+						resp, _ := json.Marshal(openaiResp)
+						dataChan <- string(resp)
+					}
+				case genai.FunctionCall:
+					// Handle function calls as before
+					openaiResp := genaiResponseToStreamCompletionResponse(model, genaiResp, respID, created)
+					resp, _ := json.Marshal(openaiResp)
+					dataChan <- string(resp)
+				}
+			}
+		}
 
-		if len(openaiResp.Choices) > 0 && openaiResp.Choices[0].FinishReason != nil {
+		// Send finish reason if present
+		if len(genaiResp.Candidates) > 0 && genaiResp.Candidates[0].FinishReason > genai.FinishReasonStop {
+			openaiResp := genaiResponseToStreamCompletionResponse(model, genaiResp, respID, created)
+			resp, _ := json.Marshal(openaiResp)
+			dataChan <- string(resp)
 			break
 		}
 	}
