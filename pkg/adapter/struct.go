@@ -23,6 +23,8 @@ type ChatCompletionRequest struct {
 	N           int32                   `json:"n" binding:"omitempty"`
 	Stream      bool                    `json:"stream" binding:"omitempty"`
 	Stop        []string                `json:"stop,omitempty"`
+	Tools       []openai.Tool           `json:"tools,omitempty"`
+	ToolChoice  any                     `json:"tool_choice,omitempty"`
 }
 
 func (req *ChatCompletionRequest) ToGenaiMessages() ([]*genai.Content, error) {
@@ -98,7 +100,9 @@ func (req *ChatCompletionRequest) toVisionGenaiContent() ([]*genai.Content, erro
 type CompletionChoice struct {
 	Index int `json:"index"`
 	Delta struct {
-		Content string `json:"content"`
+		Content string          `json:"content,omitempty"`
+		Role    string          `json:"role,omitempty"`
+		ToolCalls []openai.ToolCall `json:"tool_calls,omitempty"`
 	} `json:"delta"`
 	FinishReason *string `json:"finish_reason"`
 }

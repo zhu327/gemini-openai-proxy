@@ -131,27 +131,55 @@ func genaiResponseToStreamCompletionResponse(
 		Choices: make([]CompletionChoice, 0, len(genaiResp.Candidates)),
 	}
 
-	for i, candidate := range genaiResp.Candidates {
-		var content string
-		if candidate.Content != nil && len(candidate.Content.Parts) > 0 {
-			if s, ok := candidate.Content.Parts[0].(genai.Text); ok {
-				content = string(s)
+	count := 0
+	toolCalls := make([]openai.ToolCall, 0)
+
+	for _, candidate := range genaiResp.Candidates {
+		parts := candidate.Content.Parts
+		for _, part := range parts {
+			index := count
+			switch pp := part.(type) {
+			case genai.Text:
+				choice := CompletionChoice{
+					Index: index,
+				}
+				choice.Delta.Content = string(pp)
+
+				if candidate.FinishReason > genai.FinishReasonStop {
+					log.Printf("genai message finish reason %s\n", candidate.FinishReason.String())
+					openaiFinishReason := string(convertFinishReason(candidate.FinishReason))
+					choice.FinishReason = &openaiFinishReason
+				}
+
+				resp.Choices = append(resp.Choices, choice)
+			case genai.FunctionCall:
+				args, _ := json.Marshal(pp.Args)
+				toolCalls = append(toolCalls, openai.ToolCall{
+					Index:    genai.Ptr(int(index)),
+					ID:       fmt.Sprintf("%s-%d", pp.Name, index),
+					Type:     openai.ToolTypeFunction,
+					Function: openai.FunctionCall{Name: pp.Name, Arguments: string(args)},
+				})
 			}
+			count++
 		}
-
+	}
+	
+	if len(toolCalls) > 0 {
 		choice := CompletionChoice{
-			Index: i,
+			Index: 0,
 		}
-		choice.Delta.Content = content
-
-		if candidate.FinishReason > genai.FinishReasonStop {
-			log.Printf("genai message finish reason %s\n", candidate.FinishReason.String())
-			openaiFinishReason := string(convertFinishReason(candidate.FinishReason))
-			choice.FinishReason = &openaiFinishReason
-		}
-
+		// For tool calls, we need to set a special finish reason
+		openaiFinishReason := string(openai.FinishReasonToolCalls)
+		choice.FinishReason = &openaiFinishReason
+		
+		// Add the tool calls to the response
+		toolCallsJSON, _ := json.Marshal(toolCalls)
+		choice.Delta.Content = string(toolCallsJSON)
+		
 		resp.Choices = append(resp.Choices, choice)
 	}
+	
 	return &resp
 }
 
@@ -166,22 +194,53 @@ func genaiResponseToOpenaiResponse(
 		Choices: make([]openai.ChatCompletionChoice, 0, len(genaiResp.Candidates)),
 	}
 
+	if genaiResp.UsageMetadata != nil {
+		resp.Usage = openai.Usage{
+			PromptTokens:     int(genaiResp.UsageMetadata.PromptTokenCount),
+			CompletionTokens: int(genaiResp.UsageMetadata.CandidatesTokenCount),
+			TotalTokens:      int(genaiResp.UsageMetadata.TotalTokenCount),
+		}
+	}
+
 	for i, candidate := range genaiResp.Candidates {
+		toolCalls := make([]openai.ToolCall, 0)
 		var content string
+		
 		if candidate.Content != nil && len(candidate.Content.Parts) > 0 {
-			if s, ok := candidate.Content.Parts[0].(genai.Text); ok {
-				content = string(s)
+			for j, part := range candidate.Content.Parts {
+				switch pp := part.(type) {
+				case genai.Text:
+					content = string(pp)
+				case genai.FunctionCall:
+					args, _ := json.Marshal(pp.Args)
+					toolCalls = append(toolCalls, openai.ToolCall{
+						Index:    genai.Ptr(j),
+						ID:       fmt.Sprintf("%s-%d", pp.Name, j),
+						Type:     openai.ToolTypeFunction,
+						Function: openai.FunctionCall{Name: pp.Name, Arguments: string(args)},
+					})
+				}
 			}
 		}
 
 		choice := openai.ChatCompletionChoice{
 			Index: i,
-			Message: openai.ChatCompletionMessage{
-				Role:    openai.ChatMessageRoleAssistant,
-				Content: content,
-			},
 			FinishReason: convertFinishReason(candidate.FinishReason),
 		}
+		
+		if len(toolCalls) > 0 {
+			choice.Message = openai.ChatCompletionMessage{
+				Role:      openai.ChatMessageRoleAssistant,
+				ToolCalls: toolCalls,
+			}
+			choice.FinishReason = openai.FinishReasonToolCalls
+		} else {
+			choice.Message = openai.ChatCompletionMessage{
+				Role:    openai.ChatMessageRoleAssistant,
+				Content: content,
+			}
+		}
+		
 		resp.Choices = append(resp.Choices, choice)
 	}
 	return resp
@@ -227,6 +286,36 @@ func setGenaiModelByOpenaiRequest(model *genai.GenerativeModel, req *ChatComplet
 	if len(req.Stop) != 0 {
 		model.StopSequences = req.Stop
 	}
+	
+	// Configure tools if provided
+	if len(req.Tools) > 0 {
+		tools := convertOpenAIToolsToGenAI(req.Tools)
+		model.Tools = tools
+		
+		// Configure tool choice/function calling mode
+		model.ToolConfig = &genai.ToolConfig{
+			FunctionCallingConfig: &genai.FunctionCallingConfig{},
+		}
+		
+		switch v := req.ToolChoice.(type) {
+		case string:
+			if v == "none" {
+				model.ToolConfig.FunctionCallingConfig.Mode = genai.FunctionCallingNone
+			} else if v == "auto" {
+				model.ToolConfig.FunctionCallingConfig.Mode = genai.FunctionCallingAuto
+			}
+		case map[string]interface{}:
+			if funcObj, ok := v["function"]; ok {
+				if funcMap, ok := funcObj.(map[string]interface{}); ok {
+					if name, ok := funcMap["name"].(string); ok {
+						model.ToolConfig.FunctionCallingConfig.Mode = genai.FunctionCallingAny
+						model.ToolConfig.FunctionCallingConfig.AllowedFunctionNames = []string{name}
+					}
+				}
+			}
+		}
+	}
+	
 	model.SafetySettings = []*genai.SafetySetting{
 		{
 			Category:  genai.HarmCategoryHarassment,
