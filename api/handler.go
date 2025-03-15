@@ -122,7 +122,15 @@ func ChatProxyHandler(c *gin.Context) {
 	}
 	
 	// Initialize Gemini models if not already initialized
-	adapter.InitGeminiModels(openaiAPIKey)
+	if err := adapter.InitGeminiModels(openaiAPIKey); err != nil {
+		log.Printf("Error initializing Gemini models: %v", err)
+		c.JSON(http.StatusInternalServerError, openai.APIError{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to initialize Gemini models: " + err.Error(),
+			Type:    "server_error",
+		})
+		return
+	}
 
 	req := &adapter.ChatCompletionRequest{}
 	// Bind the JSON data from the request to the struct

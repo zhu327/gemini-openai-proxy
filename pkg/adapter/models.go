@@ -53,7 +53,8 @@ func FetchGeminiModels(ctx context.Context, apiKey string) ([]string, error) {
 }
 
 // InitGeminiModels initializes the GeminiModels slice with available models
-func InitGeminiModels(apiKey string) {
+func InitGeminiModels(apiKey string) error {
+	var initErr error
 	geminiModelsOnce.Do(func() {
 		ctx := context.Background()
 		models, err := FetchGeminiModels(ctx, apiKey)
@@ -63,6 +64,7 @@ func InitGeminiModels(apiKey string) {
 			geminiModelsLock.Lock()
 			GeminiModels = []string{Gemini1Dot5Pro, Gemini1Dot5Flash, Gemini1Dot5ProV, Gemini2FlashExp, TextEmbedding004}
 			geminiModelsLock.Unlock()
+			initErr = err
 			return
 		}
 		geminiModelsLock.Lock()
@@ -70,6 +72,7 @@ func InitGeminiModels(apiKey string) {
 		geminiModelsLock.Unlock()
 		log.Printf("Initialized Gemini models: %v\n", GeminiModels)
 	})
+	return initErr
 }
 
 // GetAvailableGeminiModels returns the available Gemini models
