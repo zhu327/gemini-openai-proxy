@@ -107,16 +107,14 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 
 	respID := util.GetUUID()
 	created := time.Now().Unix()
-	
+
 	// For character-by-character streaming
 	var textBuffer string
-	
-	
-	
-	// Counter for character-by-character streaming
+
+	// Counter for character-by-character streaming - increased for better performance
 	sentenceLength := 1700
 	charCount := 0
-	
+
 	// Function to send a single character with proper formatting
 	sendCharacter := func(char string) {
 		openaiResp := &CompletionResponse{
@@ -128,8 +126,8 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 				{
 					Index: 0,
 					Delta: struct {
-						Content string          `json:"content,omitempty"`
-						Role    string          `json:"role,omitempty"`
+						Content   string            `json:"content,omitempty"`
+						Role      string            `json:"role,omitempty"`
 						ToolCalls []openai.ToolCall `json:"tool_calls,omitempty"`
 					}{
 						Content: char,
@@ -155,8 +153,8 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 				{
 					Index: 0,
 					Delta: struct {
-						Content string          `json:"content,omitempty"`
-						Role    string          `json:"role,omitempty"`
+						Content   string            `json:"content,omitempty"`
+						Role      string            `json:"role,omitempty"`
 						ToolCalls []openai.ToolCall `json:"tool_calls,omitempty"`
 					}{
 						Content: text,
@@ -182,7 +180,7 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 
 		if err != nil {
 			log.Printf("genai get stream message error %v\n", err)
-			
+
 			// Check for context cancellation
 			if errors.Is(err, context.Canceled) {
 				log.Printf("Context was canceled by client")
@@ -195,7 +193,7 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 				dataChan <- string(resp)
 				break
 			}
-			
+
 			// Check for rate limit errors
 			var apiErr *googleapi.Error
 			if errors.As(err, &apiErr) && apiErr.Code == http.StatusTooManyRequests {
@@ -209,7 +207,7 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 				dataChan <- string(resp)
 				break
 			}
-			
+
 			// Handle other errors
 			generalErr := openai.APIError{
 				Code:    http.StatusInternalServerError,
@@ -242,8 +240,7 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 						for i, char := range text {
 							if charCount < sentenceLength {
 								sendCharacter(string(char))
-								// Small delay between characters for natural flow
-								time.Sleep(time.Millisecond * 5)
+								// No delay between characters for faster streaming
 								charCount++
 							} else {
 								// Once we've reached sentenceLength, send the rest of this text at once
@@ -254,7 +251,7 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 								break
 							}
 						}
-				
+
 					} else {
 						// For subsequent chunks after sentenceLength, send the entire text at once
 						sendFullText(text)
@@ -275,7 +272,7 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 				sendFullText(textBuffer)
 				textBuffer = ""
 			}
-			
+
 			// Send the finish reason
 			for _, candidate := range genaiResp.Candidates {
 				if candidate.FinishReason > genai.FinishReasonStop {
@@ -289,8 +286,8 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 							{
 								Index: 0,
 								Delta: struct {
-									Content string          `json:"content,omitempty"`
-									Role    string          `json:"role,omitempty"`
+									Content   string            `json:"content,omitempty"`
+									Role      string            `json:"role,omitempty"`
 									ToolCalls []openai.ToolCall `json:"tool_calls,omitempty"`
 								}{
 									// Empty content for finish reason message
@@ -351,7 +348,7 @@ func genaiResponseToStreamCompletionResponse(model string, genaiResp *genai.Gene
 			count++
 		}
 	}
-	
+
 	if len(toolCalls) > 0 {
 		choice := CompletionChoice{
 			Index: 0,
@@ -359,14 +356,14 @@ func genaiResponseToStreamCompletionResponse(model string, genaiResp *genai.Gene
 		// For tool calls, we need to set a special finish reason
 		openaiFinishReason := string(openai.FinishReasonToolCalls)
 		choice.FinishReason = &openaiFinishReason
-		
+
 		// Add the tool calls to the response
 		toolCallsJSON, _ := json.Marshal(toolCalls)
 		choice.Delta.Content = string(toolCallsJSON)
-		
+
 		resp.Choices = append(resp.Choices, choice)
 	}
-	
+
 	return &resp
 }
 
@@ -390,7 +387,7 @@ func genaiResponseToOpenaiResponse(model string, genaiResp *genai.GenerateConten
 	for i, candidate := range genaiResp.Candidates {
 		toolCalls := make([]openai.ToolCall, 0)
 		var content string
-		
+
 		if candidate.Content != nil && len(candidate.Content.Parts) > 0 {
 			for j, part := range candidate.Content.Parts {
 				switch pp := part.(type) {
@@ -409,10 +406,10 @@ func genaiResponseToOpenaiResponse(model string, genaiResp *genai.GenerateConten
 		}
 
 		choice := openai.ChatCompletionChoice{
-			Index: i,
+			Index:        i,
 			FinishReason: convertFinishReason(candidate.FinishReason),
 		}
-		
+
 		if len(toolCalls) > 0 {
 			choice.Message = openai.ChatCompletionMessage{
 				Role:      openai.ChatMessageRoleAssistant,
@@ -425,7 +422,7 @@ func genaiResponseToOpenaiResponse(model string, genaiResp *genai.GenerateConten
 				Content: content,
 			}
 		}
-		
+
 		resp.Choices = append(resp.Choices, choice)
 	}
 	return resp
@@ -471,22 +468,22 @@ func setGenaiModelByOpenaiRequest(model *genai.GenerativeModel, req *ChatComplet
 	if len(req.Stop) != 0 {
 		model.StopSequences = req.Stop
 	}
-	
+
 	// Set response format if specified
 	if req.ResponseFormat != nil && req.ResponseFormat.Type == "json" {
 		model.ResponseMIMEType = "application/json"
 	}
-	
+
 	// Configure tools if provided
 	if len(req.Tools) > 0 {
 		tools := convertOpenAIToolsToGenAI(req.Tools)
 		model.Tools = tools
-		
+
 		// Configure tool choice/function calling mode
 		model.ToolConfig = &genai.ToolConfig{
 			FunctionCallingConfig: &genai.FunctionCallingConfig{},
 		}
-		
+
 		switch v := req.ToolChoice.(type) {
 		case string:
 			if v == "none" {
@@ -505,7 +502,7 @@ func setGenaiModelByOpenaiRequest(model *genai.GenerativeModel, req *ChatComplet
 			}
 		}
 	}
-	
+
 	model.SafetySettings = []*genai.SafetySetting{
 		{
 			Category:  genai.HarmCategoryHarassment,
