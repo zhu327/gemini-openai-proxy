@@ -472,6 +472,11 @@ func setGenaiModelByOpenaiRequest(model *genai.GenerativeModel, req *ChatComplet
 		model.StopSequences = req.Stop
 	}
 	
+	// Set response format if specified
+	if req.ResponseFormat != nil && req.ResponseFormat.Type == "json" {
+		model.ResponseMIMEType = "application/json"
+	}
+	
 	// Configure tools if provided
 	if len(req.Tools) > 0 {
 		tools := convertOpenAIToolsToGenAI(req.Tools)

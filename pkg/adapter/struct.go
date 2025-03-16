@@ -15,16 +15,22 @@ type ChatCompletionMessage struct {
 
 // ChatCompletionRequest represents a request structure for chat completion API.
 type ChatCompletionRequest struct {
-	Model       string                  `json:"model" binding:"required"`
-	Messages    []ChatCompletionMessage `json:"messages" binding:"required,min=1"`
-	MaxTokens   int32                   `json:"max_tokens" binding:"omitempty"`
-	Temperature float32                 `json:"temperature" binding:"omitempty"`
-	TopP        float32                 `json:"top_p" binding:"omitempty"`
-	N           int32                   `json:"n" binding:"omitempty"`
-	Stream      bool                    `json:"stream" binding:"omitempty"`
-	Stop        []string                `json:"stop,omitempty"`
-	Tools       []openai.Tool           `json:"tools,omitempty"`
-	ToolChoice  any                     `json:"tool_choice,omitempty"`
+	Model          string                  `json:"model" binding:"required"`
+	Messages       []ChatCompletionMessage `json:"messages" binding:"required,min=1"`
+	MaxTokens      int32                   `json:"max_tokens" binding:"omitempty"`
+	Temperature    float32                 `json:"temperature" binding:"omitempty"`
+	TopP           float32                 `json:"top_p" binding:"omitempty"`
+	N              int32                   `json:"n" binding:"omitempty"`
+	Stream         bool                    `json:"stream" binding:"omitempty"`
+	Stop           []string                `json:"stop,omitempty"`
+	Tools          []openai.Tool           `json:"tools,omitempty"`
+	ToolChoice     any                     `json:"tool_choice,omitempty"`
+	ResponseFormat *ResponseFormat         `json:"response_format,omitempty"`
+}
+
+// ResponseFormat defines the format of the response
+type ResponseFormat struct {
+	Type string `json:"type,omitempty"`
 }
 
 func (req *ChatCompletionRequest) ToGenaiMessages() ([]*genai.Content, error) {
