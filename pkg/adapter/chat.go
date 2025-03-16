@@ -83,58 +83,170 @@ func (g *GeminiAdapter) GenerateStreamContent(
 	return dataChan, nil
 }
 
+// Helper function to find minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator, dataChan chan string) {
 	defer close(dataChan)
 
 	respID := util.GetUUID()
 	created := time.Now().Unix()
+	
+	// For character-by-character streaming
+	var textBuffer string
+	
+	
+	
+	// Counter for character-by-character streaming
+	sentenceLength := 1700
+	charCount := 0
+	
+	// Function to send a single character with proper formatting
+	sendCharacter := func(char string) {
+		openaiResp := &CompletionResponse{
+			ID:      fmt.Sprintf("chatcmpl-%s", respID),
+			Object:  "chat.completion.chunk",
+			Created: created,
+			Model:   GetMappedModel(model),
+			Choices: []CompletionChoice{
+				{
+					Index: 0,
+					Delta: struct {
+						Content string          `json:"content,omitempty"`
+						Role    string          `json:"role,omitempty"`
+						ToolCalls []openai.ToolCall `json:"tool_calls,omitempty"`
+					}{
+						Content: char,
+					},
+				},
+			},
+		}
+		resp, _ := json.Marshal(openaiResp)
+		dataChan <- string(resp)
+	}
+
+	// Function to send entire text at once (for finish conditions)
+	sendFullText := func(text string) {
+		if text == "" {
+			return
+		}
+		openaiResp := &CompletionResponse{
+			ID:      fmt.Sprintf("chatcmpl-%s", respID),
+			Object:  "chat.completion.chunk",
+			Created: created,
+			Model:   GetMappedModel(model),
+			Choices: []CompletionChoice{
+				{
+					Index: 0,
+					Delta: struct {
+						Content string          `json:"content,omitempty"`
+						Role    string          `json:"role,omitempty"`
+						ToolCalls []openai.ToolCall `json:"tool_calls,omitempty"`
+					}{
+						Content: text,
+					},
+				},
+			},
+		}
+		resp, _ := json.Marshal(openaiResp)
+		dataChan <- string(resp)
+	}
 
 	for {
 		genaiResp, err := iter.Next()
 		if err == iterator.Done {
+			// Send any remaining text when done - all at once
+			if len(textBuffer) > 0 {
+				// Send all remaining text at once when done
+				sendFullText(textBuffer)
+				textBuffer = ""
+			}
 			break
 		}
 
 		if err != nil {
 			log.Printf("genai get stream message error %v\n", err)
-			apiErr := openai.APIError{
+			
+			// Check for context cancellation
+			if errors.Is(err, context.Canceled) {
+				log.Printf("Context was canceled by client")
+				apiErr := openai.APIError{
+					Code:    http.StatusRequestTimeout,
+					Message: "Request was canceled",
+					Type:    "canceled_error",
+				}
+				resp, _ := json.Marshal(apiErr)
+				dataChan <- string(resp)
+				break
+			}
+			
+			// Check for rate limit errors
+			var apiErr *googleapi.Error
+			if errors.As(err, &apiErr) && apiErr.Code == http.StatusTooManyRequests {
+				log.Printf("Rate limit exceeded: %v\n", err)
+				rateLimitErr := openai.APIError{
+					Code:    http.StatusTooManyRequests,
+					Message: "Rate limit exceeded",
+					Type:    "rate_limit_error",
+				}
+				resp, _ := json.Marshal(rateLimitErr)
+				dataChan <- string(resp)
+				break
+			}
+			
+			// Handle other errors
+			generalErr := openai.APIError{
 				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
+				Type:    "internal_server_error",
 			}
-
-			resp, _ := json.Marshal(apiErr)
+			resp, _ := json.Marshal(generalErr)
 			dataChan <- string(resp)
 			break
 		}
 
-		// Process each candidate's text content character by character
+		// Process each candidate's text content
 		for _, candidate := range genaiResp.Candidates {
+			if candidate.Content == nil {
+				continue
+			}
+
+			// Check if this is the last message with a finish reason
+			isLastMessage := candidate.FinishReason > genai.FinishReasonStop
+
 			for _, part := range candidate.Content.Parts {
 				switch pp := part.(type) {
 				case genai.Text:
-					// Stream each character individually
 					text := string(pp)
-					for _, char := range text {
-						openaiResp := &CompletionResponse{
-							ID:      fmt.Sprintf("chatcmpl-%s", respID),
-							Object:  "chat.completion.chunk",
-							Created: created,
-							Model:   GetMappedModel(model),
-							Choices: []CompletionChoice{
-								{
-									Index: 0,
-									Delta: struct {
-										Content string          `json:"content,omitempty"`
-										Role    string          `json:"role,omitempty"`
-										ToolCalls []openai.ToolCall `json:"tool_calls,omitempty"`
-									}{
-										Content: string(char),
-									},
-								},
-							},
+					if isLastMessage {
+						// If this is the last message, collect the text in buffer
+						textBuffer += text
+					} else if charCount < sentenceLength {
+						// Stream character by character until we reach sentenceLength
+						for i, char := range text {
+							if charCount < sentenceLength {
+								sendCharacter(string(char))
+								// Small delay between characters for natural flow
+								time.Sleep(time.Millisecond * 5)
+								charCount++
+							} else {
+								// Once we've reached sentenceLength, send the rest of this text at once
+								remaining := text[i:]
+								if remaining != "" {
+									sendFullText(remaining)
+								}
+								break
+							}
 						}
-						resp, _ := json.Marshal(openaiResp)
-						dataChan <- string(resp)
+				
+					} else {
+						// For subsequent chunks after sentenceLength, send the entire text at once
+						sendFullText(text)
 					}
 				case genai.FunctionCall:
 					// Handle function calls as before
@@ -147,20 +259,46 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 
 		// Send finish reason if present
 		if len(genaiResp.Candidates) > 0 && genaiResp.Candidates[0].FinishReason > genai.FinishReasonStop {
-			openaiResp := genaiResponseToStreamCompletionResponse(model, genaiResp, respID, created)
-			resp, _ := json.Marshal(openaiResp)
-			dataChan <- string(resp)
+			// Send any accumulated text all at once
+			if len(textBuffer) > 0 {
+				sendFullText(textBuffer)
+				textBuffer = ""
+			}
+			
+			// Send the finish reason
+			for _, candidate := range genaiResp.Candidates {
+				if candidate.FinishReason > genai.FinishReasonStop {
+					openaiFinishReason := string(convertFinishReason(candidate.FinishReason))
+					openaiResp := &CompletionResponse{
+						ID:      fmt.Sprintf("chatcmpl-%s", respID),
+						Object:  "chat.completion.chunk",
+						Created: created,
+						Model:   GetMappedModel(model),
+						Choices: []CompletionChoice{
+							{
+								Index: 0,
+								Delta: struct {
+									Content string          `json:"content,omitempty"`
+									Role    string          `json:"role,omitempty"`
+									ToolCalls []openai.ToolCall `json:"tool_calls,omitempty"`
+								}{
+									// Empty content for finish reason message
+								},
+								FinishReason: &openaiFinishReason,
+							},
+						},
+					}
+					resp, _ := json.Marshal(openaiResp)
+					dataChan <- string(resp)
+					break
+				}
+			}
 			break
 		}
 	}
 }
 
-func genaiResponseToStreamCompletionResponse(
-	model string,
-	genaiResp *genai.GenerateContentResponse,
-	respID string,
-	created int64,
-) *CompletionResponse {
+func genaiResponseToStreamCompletionResponse(model string, genaiResp *genai.GenerateContentResponse, respID string, created int64) *CompletionResponse {
 	resp := CompletionResponse{
 		ID:      fmt.Sprintf("chatcmpl-%s", respID),
 		Object:  "chat.completion.chunk",
@@ -221,9 +359,7 @@ func genaiResponseToStreamCompletionResponse(
 	return &resp
 }
 
-func genaiResponseToOpenaiResponse(
-	model string, genaiResp *genai.GenerateContentResponse,
-) openai.ChatCompletionResponse {
+func genaiResponseToOpenaiResponse(model string, genaiResp *genai.GenerateContentResponse) openai.ChatCompletionResponse {
 	resp := openai.ChatCompletionResponse{
 		ID:      fmt.Sprintf("chatcmpl-%s", util.GetUUID()),
 		Object:  "chat.completion",
