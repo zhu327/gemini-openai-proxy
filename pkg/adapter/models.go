@@ -46,7 +46,12 @@ func FetchGeminiModels(ctx context.Context, apiKey string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		models = append(models, m.Name)
+		// Strip the 'models/' prefix from model names
+		modelName := m.Name
+		if strings.HasPrefix(modelName, "models/") {
+			modelName = strings.TrimPrefix(modelName, "models/")
+		}
+		models = append(models, modelName)
 	}
 
 	return models, nil

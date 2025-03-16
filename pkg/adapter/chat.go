@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/generative-ai-go/genai"
@@ -39,7 +40,12 @@ func (g *GeminiAdapter) GenerateContent(
 	req *ChatCompletionRequest,
 	messages []*genai.Content,
 ) (*openai.ChatCompletionResponse, error) {
-	model := g.client.GenerativeModel(g.model)
+	// Add 'models/' prefix if not already present
+	modelName := g.model
+	if !strings.HasPrefix(modelName, "models/") {
+		modelName = "models/" + modelName
+	}
+	model := g.client.GenerativeModel(modelName)
 	setGenaiModelByOpenaiRequest(model, req)
 
 	cs := model.StartChat()
@@ -69,7 +75,12 @@ func (g *GeminiAdapter) GenerateStreamContent(
 	req *ChatCompletionRequest,
 	messages []*genai.Content,
 ) (<-chan string, error) {
-	model := g.client.GenerativeModel(g.model)
+	// Add 'models/' prefix if not already present
+	modelName := g.model
+	if !strings.HasPrefix(modelName, "models/") {
+		modelName = "models/" + modelName
+	}
+	model := g.client.GenerativeModel(modelName)
 	setGenaiModelByOpenaiRequest(model, req)
 
 	cs := model.StartChat()
@@ -514,7 +525,12 @@ func (g *GeminiAdapter) GenerateEmbedding(
 	ctx context.Context,
 	messages []*genai.Content,
 ) (*openai.EmbeddingResponse, error) {
-	model := g.client.EmbeddingModel(g.model)
+	// Add 'models/' prefix if not already present
+	modelName := g.model
+	if !strings.HasPrefix(modelName, "models/") {
+		modelName = "models/" + modelName
+	}
+	model := g.client.EmbeddingModel(modelName)
 
 	batchEmbeddings := model.NewBatch()
 	for _, message := range messages {
