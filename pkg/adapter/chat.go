@@ -75,7 +75,6 @@ func (g *GeminiAdapter) GenerateStreamContent(
 	req *ChatCompletionRequest,
 	messages []*genai.Content,
 ) (<-chan string, error) {
-	// Add 'models/' prefix if not already present
 	modelName := g.model
 	if !strings.HasPrefix(modelName, "models/") {
 		modelName = "models/" + modelName
@@ -94,14 +93,6 @@ func (g *GeminiAdapter) GenerateStreamContent(
 	return dataChan, nil
 }
 
-// Helper function to find minimum of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator, dataChan chan string) {
 	defer close(dataChan)
 
@@ -112,7 +103,7 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 	var textBuffer string
 
 	// Counter for character-by-character streaming - increased for better performance
-	sentenceLength := 1700
+	sentenceLength := 1000
 	charCount := 0
 
 	// Function to send a single character with proper formatting
