@@ -164,7 +164,6 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 			if len(textBuffer) > 0 {
 				// Send all remaining text at once when done
 				sendFullText(textBuffer)
-				textBuffer = ""
 			}
 			break
 		}
@@ -261,7 +260,6 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 			// Send any accumulated text all at once
 			if len(textBuffer) > 0 {
 				sendFullText(textBuffer)
-				textBuffer = ""
 			}
 
 			// Send the finish reason
