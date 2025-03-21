@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/google/generative-ai-go/genai"
+	//nolint:typecheck
 	"github.com/google/generative-ai-go/genai/internal/testhelpers"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
