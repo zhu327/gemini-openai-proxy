@@ -29,10 +29,17 @@ func ModelListHandler(c *gin.Context) {
 	authorizationHeader := c.GetHeader("Authorization")
 	var apiKey string
 	_, err := fmt.Sscanf(authorizationHeader, "Bearer %s", &apiKey)
-	if err == nil {
-		adapter.InitGeminiModels(apiKey)
+	if err != nil {
+		handleGenerateContentError(c, err)
+		return
 	}
-	
+
+	err = adapter.InitGeminiModels(apiKey)
+	if err != nil {
+		handleGenerateContentError(c, err)
+		return
+	}
+
 	if !adapter.USE_MODEL_MAPPING {
 		// When model mapping is disabled, return the actual Gemini models
 		models := adapter.GetAvailableGeminiModels()
@@ -53,7 +60,7 @@ func ModelListHandler(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// When model mapping is enabled, return the OpenAI models
 	c.JSON(http.StatusOK, gin.H{
 		"object": "list",
