@@ -15,14 +15,22 @@ type ChatCompletionMessage struct {
 
 // ChatCompletionRequest represents a request structure for chat completion API.
 type ChatCompletionRequest struct {
-	Model       string                  `json:"model" binding:"required"`
-	Messages    []ChatCompletionMessage `json:"messages" binding:"required,min=1"`
-	MaxTokens   int32                   `json:"max_tokens" binding:"omitempty"`
-	Temperature float32                 `json:"temperature" binding:"omitempty"`
-	TopP        float32                 `json:"top_p" binding:"omitempty"`
-	N           int32                   `json:"n" binding:"omitempty"`
-	Stream      bool                    `json:"stream" binding:"omitempty"`
-	Stop        []string                `json:"stop,omitempty"`
+	Model          string                  `json:"model" binding:"required"`
+	Messages       []ChatCompletionMessage `json:"messages" binding:"required,min=1"`
+	MaxTokens      int32                   `json:"max_tokens" binding:"omitempty"`
+	Temperature    float32                 `json:"temperature" binding:"omitempty"`
+	TopP           float32                 `json:"top_p" binding:"omitempty"`
+	N              int32                   `json:"n" binding:"omitempty"`
+	Stream         bool                    `json:"stream" binding:"omitempty"`
+	Stop           []string                `json:"stop,omitempty"`
+	Tools          []openai.Tool           `json:"tools,omitempty"`
+	ToolChoice     any                     `json:"tool_choice,omitempty"`
+	ResponseFormat *ResponseFormat         `json:"response_format,omitempty"`
+}
+
+// ResponseFormat defines the format of the response
+type ResponseFormat struct {
+	Type string `json:"type,omitempty"`
 }
 
 func (req *ChatCompletionRequest) ToGenaiMessages() ([]*genai.Content, error) {
@@ -98,7 +106,9 @@ func (req *ChatCompletionRequest) toVisionGenaiContent() ([]*genai.Content, erro
 type CompletionChoice struct {
 	Index int `json:"index"`
 	Delta struct {
-		Content string `json:"content"`
+		Content string          `json:"content,omitempty"`
+		Role    string          `json:"role,omitempty"`
+		ToolCalls []openai.ToolCall `json:"tool_calls,omitempty"`
 	} `json:"delta"`
 	FinishReason *string `json:"finish_reason"`
 }
