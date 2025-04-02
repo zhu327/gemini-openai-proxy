@@ -24,6 +24,44 @@ func IndexHandler(c *gin.Context) {
 
 func ModelListHandler(c *gin.Context) {
 	owner := adapter.GetOwner()
+	
+	// Get authorization header to initialize models if needed
+	authorizationHeader := c.GetHeader("Authorization")
+	var apiKey string
+	_, err := fmt.Sscanf(authorizationHeader, "Bearer %s", &apiKey)
+	if err != nil {
+		handleGenerateContentError(c, err)
+		return
+	}
+
+	err = adapter.InitGeminiModels(apiKey)
+	if err != nil {
+		handleGenerateContentError(c, err)
+		return
+	}
+
+	if !adapter.USE_MODEL_MAPPING {
+		// When model mapping is disabled, return the actual Gemini models
+		models := adapter.GetAvailableGeminiModels()
+		modelList := make([]any, 0, len(models))
+		
+		for _, modelName := range models {
+			modelList = append(modelList, openai.Model{
+				CreatedAt: 1686935002,
+				ID:        modelName,
+				Object:    "model",
+				OwnedBy:   owner,
+			})
+		}
+		
+		c.JSON(http.StatusOK, gin.H{
+			"object": "list",
+			"data":   modelList,
+		})
+		return
+	}
+
+	// When model mapping is enabled, return the OpenAI models
 	c.JSON(http.StatusOK, gin.H{
 		"object": "list",
 		"data": []any{
@@ -87,6 +125,17 @@ func ChatProxyHandler(c *gin.Context) {
 	_, err := fmt.Sscanf(authorizationHeader, "Bearer %s", &openaiAPIKey)
 	if err != nil {
 		handleGenerateContentError(c, err)
+		return
+	}
+	
+	// Initialize Gemini models if not already initialized
+	if err := adapter.InitGeminiModels(openaiAPIKey); err != nil {
+		log.Printf("Error initializing Gemini models: %v", err)
+		c.JSON(http.StatusInternalServerError, openai.APIError{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to initialize Gemini models: " + err.Error(),
+			Type:    "server_error",
+		})
 		return
 	}
 

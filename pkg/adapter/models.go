@@ -1,10 +1,16 @@
 package adapter
 
 import (
+	"context"
+	"log"
 	"os"
 	"strings"
+	"sync"
 
+	"github.com/google/generative-ai-go/genai"
 	openai "github.com/sashabaranov/go-openai"
+	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
 
 const (
@@ -15,7 +21,74 @@ const (
 	TextEmbedding004 = "text-embedding-004"
 )
 
+// GeminiModels stores the available models from Gemini API
+var GeminiModels []string
+var geminiModelsOnce sync.Once
+var geminiModelsLock sync.RWMutex
+
 var USE_MODEL_MAPPING bool = os.Getenv("DISABLE_MODEL_MAPPING") != "1"
+
+// FetchGeminiModels fetches available models from Gemini API
+func FetchGeminiModels(ctx context.Context, apiKey string) ([]string, error) {
+	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+
+	models := []string{}
+	iter := client.ListModels(ctx)
+	for {
+		m, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		// Strip the 'models/' prefix from model names
+		modelName := m.Name
+		modelName = strings.TrimPrefix(modelName, "models/")
+		models = append(models, modelName)
+	}
+
+	return models, nil
+}
+
+// InitGeminiModels initializes the GeminiModels slice with available models
+func InitGeminiModels(apiKey string) error {
+	var initErr error
+	geminiModelsOnce.Do(func() {
+		ctx := context.Background()
+		models, err := FetchGeminiModels(ctx, apiKey)
+		if err != nil {
+			log.Printf("Failed to fetch Gemini models: %v\n", err)
+			// Fallback to default models
+			geminiModelsLock.Lock()
+			GeminiModels = []string{Gemini1Dot5Pro, Gemini1Dot5Flash, Gemini1Dot5ProV, Gemini2FlashExp, TextEmbedding004}
+			geminiModelsLock.Unlock()
+			initErr = err
+			return
+		}
+		geminiModelsLock.Lock()
+		GeminiModels = models
+		geminiModelsLock.Unlock()
+		log.Printf("Initialized Gemini models: %v\n", GeminiModels)
+	})
+	return initErr
+}
+
+// GetAvailableGeminiModels returns the available Gemini models
+func GetAvailableGeminiModels() []string {
+	geminiModelsLock.RLock()
+	defer geminiModelsLock.RUnlock()
+	
+	if len(GeminiModels) == 0 {
+		return []string{Gemini1Dot5Pro, Gemini1Dot5Flash, Gemini1Dot5ProV, Gemini2FlashExp, TextEmbedding004}
+	}
+	
+	return GeminiModels
+}
 
 func GetOwner() string {
 	if USE_MODEL_MAPPING {
@@ -31,6 +104,29 @@ func GetModel(openAiModelName string) string {
 	} else {
 		return ConvertModel(openAiModelName)
 	}
+}
+
+// IsValidGeminiModel checks if the model is a valid Gemini model
+func IsValidGeminiModel(modelName string) bool {
+	if len(GeminiModels) == 0 {
+		// If models haven't been fetched yet, use the default list
+		return modelName == Gemini1Dot5Pro || 
+		       modelName == Gemini1Dot5Flash || 
+		       modelName == Gemini1Dot5ProV || 
+		       modelName == Gemini2FlashExp || 
+		       modelName == TextEmbedding004
+	}
+	
+	geminiModelsLock.RLock()
+	defer geminiModelsLock.RUnlock()
+	
+	for _, model := range GeminiModels {
+		if model == modelName {
+			return true
+		}
+	}
+	
+	return false
 }
 
 func GetMappedModel(geminiModelName string) string {
@@ -85,7 +181,14 @@ func (req *ChatCompletionRequest) ParseModelWithoutMapping() string {
 
 		return Gemini1Dot5Flash
 	default:
-		return req.Model
+		// Check if the model is valid
+		if IsValidGeminiModel(req.Model) {
+			return req.Model
+		}
+		
+		// Fallback to default model if not valid
+		log.Printf("Invalid model: %s, falling back to %s\n", req.Model, Gemini1Dot5Flash)
+		return Gemini1Dot5Flash
 	}
 }
 
@@ -106,6 +209,13 @@ func (req *EmbeddingRequest) ToGenaiModel() string {
 	if USE_MODEL_MAPPING {
 		return ConvertModel(req.Model)
 	} else {
-		return req.Model
+		// Check if the model is valid
+		if IsValidGeminiModel(req.Model) {
+			return req.Model
+		}
+		
+		// Fallback to default embedding model if not valid
+		log.Printf("Invalid embedding model: %s, falling back to %s\n", req.Model, TextEmbedding004)
+		return TextEmbedding004
 	}
 }

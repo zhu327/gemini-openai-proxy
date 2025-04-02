@@ -170,6 +170,12 @@ Now, your application is equipped to leverage OpenAI functionality through the G
 
 - <https://github.com/zhu327/gemini-openai-proxy/issues/4>
 
+## Important Notice  
+
+Google AI Studio now provides an OpenAI-compatible API endpoint. Users of this project are recommended to use the officially provided compatibility API. Documentation is available at:  
+
+<https://ai.google.dev/gemini-api/docs/openai>
+
 ---
 
 ## License
