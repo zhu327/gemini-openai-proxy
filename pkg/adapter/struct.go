@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/google/generative-ai-go/genai"
 	"github.com/pkg/errors"
@@ -9,8 +10,10 @@ import (
 )
 
 type ChatCompletionMessage struct {
-	Role    string          `json:"role"`
-	Content json.RawMessage `json:"content"`
+	Role       string            `json:"role"`
+	Content    json.RawMessage   `json:"content"`
+	ToolCalls  []openai.ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string            `json:"tool_call_id,omitempty"`
 }
 
 // ChatCompletionRequest represents a request structure for chat completion API.
@@ -53,9 +56,12 @@ func (req *ChatCompletionRequest) toVisionGenaiContent() ([]*genai.Content, erro
 			if err := json.Unmarshal(message.Content, &singleString); err != nil {
 				return nil, errors.Wrap(err, "failed to unmarshal message content")
 			}
-			// Convert single string to a part
-			parts = []openai.ChatMessagePart{
-				{Type: openai.ChatMessagePartTypeText, Text: singleString},
+
+			if len(message.ToolCalls) == 0 {
+				// Convert single string to a part
+				parts = []openai.ChatMessagePart{
+					{Type: openai.ChatMessagePartTypeText, Text: singleString},
+				}
 			}
 		}
 
@@ -63,7 +69,21 @@ func (req *ChatCompletionRequest) toVisionGenaiContent() ([]*genai.Content, erro
 		for _, part := range parts {
 			switch part.Type {
 			case openai.ChatMessagePartTypeText:
-				prompt = append(prompt, genai.Text(part.Text))
+				if message.Role == openai.ChatMessageRoleTool {
+					functionName := message.ToolCallID
+					lastDashIndex := strings.LastIndex(functionName, "-")
+					if lastDashIndex != -1 {
+						functionName = functionName[:lastDashIndex]
+					}
+
+					prompt = append(prompt, genai.FunctionResponse{
+						Name:     functionName,
+						Response: map[string]any{"result": part.Text},
+					})
+				} else {
+					prompt = append(prompt, genai.Text(part.Text))
+				}
+
 			case openai.ChatMessagePartTypeImageURL:
 				data, format, err := parseImageURL(part.ImageURL.URL)
 				if err != nil {
@@ -72,6 +92,18 @@ func (req *ChatCompletionRequest) toVisionGenaiContent() ([]*genai.Content, erro
 
 				prompt = append(prompt, genai.ImageData(format, data))
 			}
+		}
+
+		for _, tool := range message.ToolCalls {
+			args := map[string]any{}
+			if err := json.Unmarshal([]byte(tool.Function.Arguments), &args); err != nil {
+				return nil, errors.Wrap(err, "failed to unmarshal message function args")
+			}
+
+			prompt = append(prompt, genai.FunctionCall{
+				Name: tool.Function.Name,
+				Args: args,
+			})
 		}
 
 		switch message.Role {
@@ -93,7 +125,7 @@ func (req *ChatCompletionRequest) toVisionGenaiContent() ([]*genai.Content, erro
 				Parts: prompt,
 				Role:  genaiRoleModel,
 			})
-		case openai.ChatMessageRoleUser:
+		case openai.ChatMessageRoleUser, openai.ChatMessageRoleTool:
 			content = append(content, &genai.Content{
 				Parts: prompt,
 				Role:  genaiRoleUser,
@@ -106,8 +138,8 @@ func (req *ChatCompletionRequest) toVisionGenaiContent() ([]*genai.Content, erro
 type CompletionChoice struct {
 	Index int `json:"index"`
 	Delta struct {
-		Content string          `json:"content,omitempty"`
-		Role    string          `json:"role,omitempty"`
+		Content   string            `json:"content,omitempty"`
+		Role      string            `json:"role,omitempty"`
 		ToolCalls []openai.ToolCall `json:"tool_calls,omitempty"`
 	} `json:"delta"`
 	FinishReason *string `json:"finish_reason"`

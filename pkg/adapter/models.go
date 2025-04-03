@@ -22,9 +22,11 @@ const (
 )
 
 // GeminiModels stores the available models from Gemini API
-var GeminiModels []string
-var geminiModelsOnce sync.Once
-var geminiModelsLock sync.RWMutex
+var (
+	GeminiModels     []string
+	geminiModelsOnce sync.Once
+	geminiModelsLock sync.RWMutex
+)
 
 var USE_MODEL_MAPPING bool = os.Getenv("DISABLE_MODEL_MAPPING") != "1"
 
@@ -65,7 +67,13 @@ func InitGeminiModels(apiKey string) error {
 			log.Printf("Failed to fetch Gemini models: %v\n", err)
 			// Fallback to default models
 			geminiModelsLock.Lock()
-			GeminiModels = []string{Gemini1Dot5Pro, Gemini1Dot5Flash, Gemini1Dot5ProV, Gemini2FlashExp, TextEmbedding004}
+			GeminiModels = []string{
+				Gemini1Dot5Pro,
+				Gemini1Dot5Flash,
+				Gemini1Dot5ProV,
+				Gemini2FlashExp,
+				TextEmbedding004,
+			}
 			geminiModelsLock.Unlock()
 			initErr = err
 			return
@@ -82,11 +90,11 @@ func InitGeminiModels(apiKey string) error {
 func GetAvailableGeminiModels() []string {
 	geminiModelsLock.RLock()
 	defer geminiModelsLock.RUnlock()
-	
+
 	if len(GeminiModels) == 0 {
 		return []string{Gemini1Dot5Pro, Gemini1Dot5Flash, Gemini1Dot5ProV, Gemini2FlashExp, TextEmbedding004}
 	}
-	
+
 	return GeminiModels
 }
 
@@ -110,22 +118,22 @@ func GetModel(openAiModelName string) string {
 func IsValidGeminiModel(modelName string) bool {
 	if len(GeminiModels) == 0 {
 		// If models haven't been fetched yet, use the default list
-		return modelName == Gemini1Dot5Pro || 
-		       modelName == Gemini1Dot5Flash || 
-		       modelName == Gemini1Dot5ProV || 
-		       modelName == Gemini2FlashExp || 
-		       modelName == TextEmbedding004
+		return modelName == Gemini1Dot5Pro ||
+			modelName == Gemini1Dot5Flash ||
+			modelName == Gemini1Dot5ProV ||
+			modelName == Gemini2FlashExp ||
+			modelName == TextEmbedding004
 	}
-	
+
 	geminiModelsLock.RLock()
 	defer geminiModelsLock.RUnlock()
-	
+
 	for _, model := range GeminiModels {
 		if model == modelName {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -185,7 +193,7 @@ func (req *ChatCompletionRequest) ParseModelWithoutMapping() string {
 		if IsValidGeminiModel(req.Model) {
 			return req.Model
 		}
-		
+
 		// Fallback to default model if not valid
 		log.Printf("Invalid model: %s, falling back to %s\n", req.Model, Gemini1Dot5Flash)
 		return Gemini1Dot5Flash
@@ -213,7 +221,7 @@ func (req *EmbeddingRequest) ToGenaiModel() string {
 		if IsValidGeminiModel(req.Model) {
 			return req.Model
 		}
-		
+
 		// Fallback to default embedding model if not valid
 		log.Printf("Invalid embedding model: %s, falling back to %s\n", req.Model, TextEmbedding004)
 		return TextEmbedding004

@@ -241,7 +241,6 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 								break
 							}
 						}
-
 					} else {
 						// For subsequent chunks after sentenceLength, send the entire text at once
 						sendFullText(text)
@@ -295,7 +294,12 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 	}
 }
 
-func genaiResponseToStreamCompletionResponse(model string, genaiResp *genai.GenerateContentResponse, respID string, created int64) *CompletionResponse {
+func genaiResponseToStreamCompletionResponse(
+	model string,
+	genaiResp *genai.GenerateContentResponse,
+	respID string,
+	created int64,
+) *CompletionResponse {
 	resp := CompletionResponse{
 		ID:      fmt.Sprintf("chatcmpl-%s", respID),
 		Object:  "chat.completion.chunk",
@@ -356,7 +360,10 @@ func genaiResponseToStreamCompletionResponse(model string, genaiResp *genai.Gene
 	return &resp
 }
 
-func genaiResponseToOpenaiResponse(model string, genaiResp *genai.GenerateContentResponse) openai.ChatCompletionResponse {
+func genaiResponseToOpenaiResponse(
+	model string,
+	genaiResp *genai.GenerateContentResponse,
+) openai.ChatCompletionResponse {
 	resp := openai.ChatCompletionResponse{
 		ID:      fmt.Sprintf("chatcmpl-%s", util.GetUUID()),
 		Object:  "chat.completion",

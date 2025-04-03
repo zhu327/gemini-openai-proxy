@@ -25,14 +25,14 @@ func convertOpenAIToolsToGenAI(tools []openai.Tool) []*genai.Tool {
 			if err != nil {
 				continue // Skip this tool if we can't convert parameters
 			}
-			
+
 			var convertedParams map[string]interface{}
 			if err := json.Unmarshal(paramsBytes, &convertedParams); err != nil {
 				continue // Skip this tool if we can't convert parameters
 			}
 			paramsMap = convertedParams
 		}
-		
+
 		schema := convertJSONSchemaToGenAISchema(paramsMap)
 
 		item := &genai.Tool{

@@ -24,7 +24,7 @@ func IndexHandler(c *gin.Context) {
 
 func ModelListHandler(c *gin.Context) {
 	owner := adapter.GetOwner()
-	
+
 	// Get authorization header to initialize models if needed
 	authorizationHeader := c.GetHeader("Authorization")
 	var apiKey string
@@ -44,7 +44,7 @@ func ModelListHandler(c *gin.Context) {
 		// When model mapping is disabled, return the actual Gemini models
 		models := adapter.GetAvailableGeminiModels()
 		modelList := make([]any, 0, len(models))
-		
+
 		for _, modelName := range models {
 			modelList = append(modelList, openai.Model{
 				CreatedAt: 1686935002,
@@ -53,7 +53,7 @@ func ModelListHandler(c *gin.Context) {
 				OwnedBy:   owner,
 			})
 		}
-		
+
 		c.JSON(http.StatusOK, gin.H{
 			"object": "list",
 			"data":   modelList,
@@ -127,7 +127,7 @@ func ChatProxyHandler(c *gin.Context) {
 		handleGenerateContentError(c, err)
 		return
 	}
-	
+
 	// Initialize Gemini models if not already initialized
 	if err := adapter.InitGeminiModels(openaiAPIKey); err != nil {
 		log.Printf("Error initializing Gemini models: %v", err)

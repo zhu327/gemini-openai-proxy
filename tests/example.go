@@ -54,7 +54,6 @@ func ExampleGenerativeModel_GenerateContent_textOnly() {
 	}
 
 	printResponse(resp)
-
 }
 
 func ExampleGenerativeModel_GenerateContent_imagePrompt() {
@@ -80,7 +79,6 @@ func ExampleGenerativeModel_GenerateContent_imagePrompt() {
 	}
 
 	printResponse(resp)
-
 }
 
 func ExampleGenerativeModel_GenerateContent_videoPrompt() {
@@ -120,7 +118,6 @@ func ExampleGenerativeModel_GenerateContent_videoPrompt() {
 	}
 
 	printResponse(resp)
-
 }
 
 func ExampleGenerativeModel_GenerateContent_pdfPrompt() {
@@ -147,7 +144,6 @@ func ExampleGenerativeModel_GenerateContent_pdfPrompt() {
 	}
 
 	printResponse(resp)
-
 }
 
 func ExampleGenerativeModel_GenerateContent_multiImagePrompt() {
@@ -179,7 +175,6 @@ func ExampleGenerativeModel_GenerateContent_multiImagePrompt() {
 	}
 
 	printResponse(resp)
-
 }
 
 func ExampleGenerativeModel_GenerateContentStream_multiImagePrompt() {
@@ -216,7 +211,6 @@ func ExampleGenerativeModel_GenerateContentStream_multiImagePrompt() {
 		}
 		printResponse(resp)
 	}
-
 }
 
 func ExampleGenerativeModel_GenerateContent_config() {
@@ -241,7 +235,6 @@ func ExampleGenerativeModel_GenerateContent_config() {
 		log.Fatal(err)
 	}
 	printResponse(resp)
-
 }
 
 func ExampleGenerativeModel_GenerateContent_systemInstruction() {
@@ -259,7 +252,6 @@ func ExampleGenerativeModel_GenerateContent_systemInstruction() {
 		log.Fatal(err)
 	}
 	printResponse(resp)
-
 }
 
 func ExampleGenerativeModel_GenerateContent_safetySetting() {
@@ -282,7 +274,6 @@ func ExampleGenerativeModel_GenerateContent_safetySetting() {
 		log.Fatal(err)
 	}
 	printResponse(resp)
-
 }
 
 func ExampleGenerativeModel_GenerateContent_safetySettingMulti() {
@@ -309,7 +300,6 @@ func ExampleGenerativeModel_GenerateContent_safetySettingMulti() {
 		log.Fatal(err)
 	}
 	printResponse(resp)
-
 }
 
 func ExampleGenerativeModel_GenerateContent_codeExecution() {
@@ -354,7 +344,6 @@ func ExampleGenerativeModel_GenerateContentStream() {
 		}
 		printResponse(resp)
 	}
-
 }
 
 func ExampleGenerativeModel_GenerateContentStream_imagePrompt() {
@@ -384,7 +373,6 @@ func ExampleGenerativeModel_GenerateContentStream_imagePrompt() {
 		}
 		printResponse(resp)
 	}
-
 }
 
 func ExampleGenerativeModel_GenerateContentStream_videoPrompt() {
@@ -416,7 +404,6 @@ func ExampleGenerativeModel_GenerateContentStream_videoPrompt() {
 		}
 		printResponse(resp)
 	}
-
 }
 
 func ExampleGenerativeModel_GenerateContent_audioPrompt() {
@@ -442,7 +429,6 @@ func ExampleGenerativeModel_GenerateContent_audioPrompt() {
 		log.Fatal(err)
 	}
 	printResponse(resp)
-
 }
 
 func ExampleGenerativeModel_GenerateContentStream_audioPrompt() {
@@ -474,7 +460,6 @@ func ExampleGenerativeModel_GenerateContentStream_audioPrompt() {
 		}
 		printResponse(resp)
 	}
-
 }
 
 func ExampleGenerativeModel_GenerateContentStream_pdfPrompt() {
@@ -506,7 +491,6 @@ func ExampleGenerativeModel_GenerateContentStream_pdfPrompt() {
 		}
 		printResponse(resp)
 	}
-
 }
 
 func ExampleGenerativeModel_CountTokens_contextWindow() {
@@ -528,7 +512,6 @@ func ExampleGenerativeModel_CountTokens_contextWindow() {
 	fmt.Printf("input_token_limit=%v\n", info.InputTokenLimit)
 	fmt.Printf("output_token_limit=%v\n", info.OutputTokenLimit)
 	// ( input_token_limit=30720, output_token_limit=2048 )
-
 }
 
 func ExampleGenerativeModel_CountTokens_textOnly() {
@@ -564,7 +547,6 @@ func ExampleGenerativeModel_CountTokens_textOnly() {
 	fmt.Println("candidates_token_count:", resp.UsageMetadata.CandidatesTokenCount)
 	fmt.Println("total_token_count:", resp.UsageMetadata.TotalTokenCount)
 	// ( prompt_token_count: 10, candidates_token_count: 38, total_token_count: 48 )
-
 }
 
 func ExampleGenerativeModel_CountTokens_tools() {
@@ -592,7 +574,8 @@ func ExampleGenerativeModel_CountTokens_tools() {
 			{Name: "subtract"},
 			{Name: "multiply"},
 			{Name: "divide"},
-		}}}
+		}},
+	}
 
 	model.Tools = tools
 
@@ -606,7 +589,6 @@ func ExampleGenerativeModel_CountTokens_tools() {
 
 	fmt.Println("total_tokens:", tokResp.TotalTokens)
 	// ( total_tokens: 99 )
-
 }
 
 func ExampleGenerativeModel_CountTokens_cachedContent() {
@@ -647,7 +629,6 @@ func ExampleGenerativeModel_CountTokens_cachedContent() {
 	fmt.Println("cached_content_token_count:", resp.UsageMetadata.CachedContentTokenCount)
 	fmt.Println("total_token_count:", resp.UsageMetadata.TotalTokenCount)
 	// ( prompt_token_count: 33007,  candidates_token_count: 39, cached_content_token_count: 33002, total_token_count: 33046 )
-
 }
 
 func ExampleGenerativeModel_CountTokens_imageInline() {
@@ -684,7 +665,6 @@ func ExampleGenerativeModel_CountTokens_imageInline() {
 	fmt.Println("candidates_token_count:", resp.UsageMetadata.CandidatesTokenCount)
 	fmt.Println("total_token_count:", resp.UsageMetadata.TotalTokenCount)
 	// ( prompt_token_count: 264, candidates_token_count: 100, total_token_count: 364 )
-
 }
 
 func ExampleGenerativeModel_CountTokens_imageUploadFile() {
@@ -724,7 +704,6 @@ func ExampleGenerativeModel_CountTokens_imageUploadFile() {
 	fmt.Println("candidates_token_count:", resp.UsageMetadata.CandidatesTokenCount)
 	fmt.Println("total_token_count:", resp.UsageMetadata.TotalTokenCount)
 	// ( prompt_token_count: 264, candidates_token_count: 100, total_token_count: 364 )
-
 }
 
 func ExampleGenerativeModel_CountTokens_pdfUploadFile() {
@@ -749,7 +728,6 @@ func ExampleGenerativeModel_CountTokens_pdfUploadFile() {
 		log.Fatal(err)
 	}
 	fmt.Println(resp.UsageMetadata)
-
 }
 
 func ExampleGenerativeModel_CountTokens_videoUploadFile() {
@@ -790,7 +768,6 @@ func ExampleGenerativeModel_CountTokens_videoUploadFile() {
 	fmt.Println("candidates_token_count:", resp.UsageMetadata.CandidatesTokenCount)
 	fmt.Println("total_token_count:", resp.UsageMetadata.TotalTokenCount)
 	// ( prompt_token_count: 1481, candidates_token_count: 43, total_token_count: 1524 )
-
 }
 
 func ExampleGenerativeModel_CountTokens_chat() {
@@ -833,7 +810,6 @@ func ExampleGenerativeModel_CountTokens_chat() {
 	fmt.Println("candidates_token_count:", resp.UsageMetadata.CandidatesTokenCount)
 	fmt.Println("total_token_count:", resp.UsageMetadata.TotalTokenCount)
 	// ( prompt_token_count: 25, candidates_token_count: 21, total_token_count: 46 )
-
 }
 
 func ExampleGenerativeModel_CountTokens_systemInstruction() {
@@ -864,7 +840,6 @@ func ExampleGenerativeModel_CountTokens_systemInstruction() {
 	}
 	fmt.Println("total_tokens:", respWithInstruction.TotalTokens)
 	// ( total_tokens: 21 )
-
 }
 
 func ExampleGenerativeModel_jSONSchema() {
@@ -897,7 +872,6 @@ func ExampleGenerativeModel_jSONSchema() {
 			fmt.Println(recipes)
 		}
 	}
-
 }
 
 func ExampleGenerativeModel_jSONNoSchema() {
@@ -922,7 +896,6 @@ func ExampleGenerativeModel_jSONNoSchema() {
 	}
 
 	printResponse(resp)
-
 }
 
 // This example shows how to set the History field on ChatSession explicitly.
@@ -957,7 +930,6 @@ func ExampleChatSession_history() {
 		log.Fatal(err)
 	}
 	printResponse(res)
-
 }
 
 func ExampleChatSession_streaming() {
@@ -997,7 +969,6 @@ func ExampleChatSession_streaming() {
 		}
 		printResponse(resp)
 	}
-
 }
 
 func ExampleChatSession_streamingWithImage() {
@@ -1031,7 +1002,6 @@ func ExampleChatSession_streamingWithImage() {
 		}
 		printResponse(resp)
 	}
-
 }
 
 func ExampleEmbeddingModel_EmbedContent() {
@@ -1252,7 +1222,6 @@ func ExampleClient_UploadFile_text() {
 	}
 
 	printResponse(resp)
-
 }
 
 func ExampleClient_UploadFile_image() {
@@ -1278,7 +1247,6 @@ func ExampleClient_UploadFile_image() {
 	}
 
 	printResponse(resp)
-
 }
 
 func ExampleClient_UploadFile_pdf() {
@@ -1304,7 +1272,6 @@ func ExampleClient_UploadFile_pdf() {
 	}
 
 	printResponse(resp)
-
 }
 
 func ExampleClient_UploadFile_video() {
@@ -1343,7 +1310,6 @@ func ExampleClient_UploadFile_video() {
 	}
 
 	printResponse(resp)
-
 }
 
 func ExampleClient_UploadFile_audio() {
@@ -1369,7 +1335,6 @@ func ExampleClient_UploadFile_audio() {
 	}
 
 	printResponse(resp)
-
 }
 
 func ExampleClient_GetFile() {
@@ -1401,7 +1366,6 @@ func ExampleClient_GetFile() {
 	}
 
 	printResponse(resp)
-
 }
 
 func ExampleClient_ListFiles() {
@@ -1423,7 +1387,6 @@ func ExampleClient_ListFiles() {
 		}
 		fmt.Println(ifile.Name)
 	}
-
 }
 
 func ExampleCachedContent_create() {
@@ -1463,7 +1426,6 @@ func ExampleCachedContent_create() {
 	}
 
 	printResponse(resp)
-
 }
 
 func ExampleCachedContent_createFromChat() {
@@ -1517,7 +1479,6 @@ func ExampleCachedContent_createFromChat() {
 		log.Fatal(err)
 	}
 	printResponse(resp)
-
 }
 
 func ExampleClient_GetCachedContent() {
@@ -1562,7 +1523,6 @@ func ExampleClient_GetCachedContent() {
 	}
 
 	printResponse(resp)
-
 }
 
 func ExampleClient_ListCachedContents() {
@@ -1603,7 +1563,6 @@ func ExampleClient_ListCachedContents() {
 		}
 		fmt.Println("   ", cc.Name)
 	}
-
 }
 
 func ExampleClient_UpdateCachedContent() {
@@ -1635,11 +1594,11 @@ func ExampleClient_UpdateCachedContent() {
 	// You can update the TTL
 	newExpireTime := cc.Expiration.ExpireTime.Add(2 * time.Hour)
 	_, err = client.UpdateCachedContent(ctx, cc, &genai.CachedContentToUpdate{
-		Expiration: &genai.ExpireTimeOrTTL{ExpireTime: newExpireTime}})
+		Expiration: &genai.ExpireTimeOrTTL{ExpireTime: newExpireTime},
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
-
 }
 
 // ProxyRoundTripper is an implementation of http.RoundTripper that supports
