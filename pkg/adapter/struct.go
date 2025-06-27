@@ -25,6 +25,7 @@ type ChatCompletionRequest struct {
 	TopP           float32                 `json:"top_p" binding:"omitempty"`
 	N              int32                   `json:"n" binding:"omitempty"`
 	Stream         bool                    `json:"stream" binding:"omitempty"`
+	StreamOptions  openai.StreamOptions    `json:"stream_options,omitempty"`
 	Stop           []string                `json:"stop,omitempty"`
 	Tools          []openai.Tool           `json:"tools,omitempty"`
 	ToolChoice     any                     `json:"tool_choice,omitempty"`
@@ -151,6 +152,7 @@ type CompletionResponse struct {
 	Created int64              `json:"created"`
 	Model   string             `json:"model"`
 	Choices []CompletionChoice `json:"choices"`
+	Usage   openai.Usage       `json:"usage"`
 }
 
 type StringArray []string

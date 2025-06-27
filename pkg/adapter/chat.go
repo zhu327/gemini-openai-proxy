@@ -88,12 +88,12 @@ func (g *GeminiAdapter) GenerateStreamContent(
 	iter := cs.SendMessageStream(ctx, messages[len(messages)-1].Parts...)
 
 	dataChan := make(chan string)
-	go handleStreamIter(g.model, iter, dataChan)
+	go handleStreamIter(g.model, iter, dataChan, req.StreamOptions.IncludeUsage)
 
 	return dataChan, nil
 }
 
-func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator, dataChan chan string) {
+func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator, dataChan chan string, sendUsage bool) {
 	defer close(dataChan)
 
 	respID := util.GetUUID()
@@ -157,6 +157,28 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 		dataChan <- string(resp)
 	}
 
+	sendUsageMetadata := func(usage *genai.UsageMetadata) {
+		if usage == nil || !sendUsage {
+			return
+		}
+		openaiResp := &CompletionResponse{
+			ID:      fmt.Sprintf("chatcmpl-%s", respID),
+			Object:  "chat.completion.chunk",
+			Created: created,
+			Model:   GetMappedModel(model),
+			Choices: []CompletionChoice{},
+			Usage: openai.Usage{
+				PromptTokens:     int(usage.PromptTokenCount),
+				CompletionTokens: int(usage.CandidatesTokenCount),
+				TotalTokens:      int(usage.TotalTokenCount),
+			},
+		}
+		resp, _ := json.Marshal(openaiResp)
+		dataChan <- string(resp)
+	}
+
+	var usageMetadata *genai.UsageMetadata
+
 	for {
 		genaiResp, err := iter.Next()
 		if err == iterator.Done {
@@ -165,6 +187,9 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 				// Send all remaining text at once when done
 				sendFullText(textBuffer)
 			}
+			// per https://community.openai.com/t/usage-stats-now-available-when-using-streaming-with-the-chat-completions-api-or-completions-api/738156
+			// the usage is sent after everything else
+			sendUsageMetadata(usageMetadata)
 			break
 		}
 
@@ -208,6 +233,8 @@ func handleStreamIter(model string, iter *genai.GenerateContentResponseIterator,
 			dataChan <- string(resp)
 			break
 		}
+		// gemini returns the usage data on each response, adding to it each time, so always get the latest
+		usageMetadata = genaiResp.UsageMetadata
 
 		// Process each candidate's text content
 		for _, candidate := range genaiResp.Candidates {
